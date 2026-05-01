@@ -1,0 +1,19 @@
+{
+  "name": "@autbom/extension",
+  "version": "0.0.1",
+  "private": true,
+  "description": "AUTBOM browser extension (Chrome MV3) — auto add-to-cart on supplier sites. Scaffolded for Sprint 0; implementation in Sprint 3.",
+  "scripts": {
+    "dev": "node build.mjs --watch",
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@autbom/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.7.2"
+  }
+}

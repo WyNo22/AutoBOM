@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>AutoBOM</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+        min-width: 320px;
+        max-width: 360px;
+        background: #f8fafc;
+        color: #1e293b;
+      }
+      .header {
+        background: #1e293b;
+        color: #fff;
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+      .header a { font-size: 11px; color: #94a3b8; text-decoration: none; }
+      .header a:hover { color: #e2e8f0; }
+      .section { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; }
+      .label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+      .product-name { font-weight: 600; font-size: 13px; line-height: 1.4; margin-bottom: 4px; }
+      .product-meta { font-size: 11px; color: #64748b; }
+      .product-meta span { margin-right: 10px; }
+      select, input[type=text] {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 13px;
+        background: #fff;
+        outline: none;
+      }
+      select:focus, input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px #dbeafe; }
+      .btn {
+        display: block;
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+      }
+      .btn-primary { background: #2563eb; color: #fff; }
+      .btn-primary:hover { background: #1d4ed8; }
+      .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+      .btn-ghost { background: transparent; color: #64748b; border: 1px solid #e2e8f0; margin-top: 6px; }
+      .btn-ghost:hover { background: #f1f5f9; }
+      .status { font-size: 12px; padding: 8px 14px; }
+      .status.ok { color: #16a34a; }
+      .status.err { color: #dc2626; }
+      .hidden { display: none !important; }
+      .gap { height: 8px; }
+      .row { display: flex; gap: 8px; }
+      .row > * { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>AutoBOM</h1>
+      <a href="#" id="btn-settings-toggle">⚙ Réglages</a>
+    </div>
+
+    <!-- Capture pending -->
+    <div id="view-capture" class="hidden">
+      <div class="section">
+        <div class="label">Produit capturé</div>
+        <div class="product-name" id="cap-name"></div>
+        <div class="product-meta">
+          <span id="cap-supplier"></span>
+          <span id="cap-ref"></span>
+          <span id="cap-price"></span>
+        </div>
+      </div>
+      <div class="section">
+        <div class="label">Ajouter à la BOM</div>
+        <div class="gap"></div>
+        <select id="bom-select"><option value="">Chargement…</option></select>
+        <div class="gap"></div>
+        <button class="btn btn-primary" id="btn-send">Envoyer dans la BOM</button>
+        <button class="btn btn-ghost" id="btn-discard">Ignorer</button>
+      </div>
+      <div class="status hidden" id="send-status"></div>
+    </div>
+
+    <!-- No pending capture -->
+    <div id="view-empty" class="section">
+      <p style="color:#64748b;line-height:1.5">
+        Navigue sur une page produit (Tolery, Amazon, Misumi, RS…)
+        et clique le bouton bleu pour capturer une référence.
+      </p>
+    </div>
+
+    <!-- Settings -->
+    <div id="view-settings" class="section hidden">
+      <div class="label">URL serveur AUTBOM</div>
+      <div class="gap"></div>
+      <input type="text" id="input-base" placeholder="http://localhost:3001" />
+      <div class="gap"></div>
+      <button class="btn btn-primary" id="btn-save-settings">Enregistrer</button>
+    </div>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

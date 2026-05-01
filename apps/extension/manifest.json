@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "AutoBOM",
+  "version": "0.0.1",
+  "description": "Capturez des références produit et envoyez-les directement dans AutoBOM.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://*.tolery.fr/*",
+    "https://*.tolery.com/*",
+    "https://*.xometry.eu/*",
+    "https://*.amazon.fr/*",
+    "https://*.amazon.com/*",
+    "https://*.misumi-ec.com/*",
+    "https://*.rs-online.com/*",
+    "https://*.rsonline.fr/*",
+    "https://*.leroymerlin.fr/*",
+    "https://*.bricovis.fr/*",
+    "https://*.123roulements.com/*",
+    "https://*.norelem.com/*",
+    "http://localhost:3000/*",
+    "http://localhost:3001/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AutoBOM"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.tolery.fr/*", "https://*.tolery.com/*"],
+      "js": ["content/tolery.js"]
+    },
+    {
+      "matches": ["https://*.amazon.fr/*", "https://*.amazon.com/*"],
+      "js": ["content/amazon.js"]
+    },
+    {
+      "matches": ["https://*.misumi-ec.com/*"],
+      "js": ["content/misumi.js"]
+    },
+    {
+      "matches": ["https://*.rs-online.com/*", "https://*.rsonline.fr/*"],
+      "js": ["content/rs.js"]
+    }
+  ]
+}

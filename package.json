@@ -1,0 +1,23 @@
+{
+  "name": "autbom",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Centralized BOM (Bill of Materials) tool: fast spreadsheet-like editing, multi-supplier carts, validation workflow.",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm --filter @autbom/web db:generate",
+    "db:migrate": "pnpm --filter @autbom/web db:migrate",
+    "db:studio": "pnpm --filter @autbom/web db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
