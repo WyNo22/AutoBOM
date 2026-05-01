@@ -14,9 +14,18 @@ export default async function LoginPage() {
   const session = await auth();
   if (session?.user) redirect("/projects");
 
+  const adminEmail = process.env.ADMIN_EMAIL;
+
   async function login(formData: FormData) {
     "use server";
     const email = String(formData.get("email") ?? "").trim();
+    if (!email) return;
+    await signIn("resend", { email, redirectTo: "/projects" });
+  }
+
+  async function adminLogin() {
+    "use server";
+    const email = process.env.ADMIN_EMAIL;
     if (!email) return;
     await signIn("resend", { email, redirectTo: "/projects" });
   }
@@ -34,7 +43,7 @@ export default async function LoginPage() {
             </span>
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           <form action={login} className="flex flex-col gap-3">
             <Input
               type="email"
@@ -46,6 +55,13 @@ export default async function LoginPage() {
             />
             <Button type="submit">Recevoir le lien magique</Button>
           </form>
+          {adminEmail && (
+            <form action={adminLogin}>
+              <Button type="submit" variant="outline" className="w-full text-xs text-muted-foreground">
+                ⚡ Admin — {adminEmail}
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
