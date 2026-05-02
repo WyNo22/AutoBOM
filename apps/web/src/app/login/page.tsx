@@ -23,13 +23,6 @@ export default async function LoginPage() {
     await signIn("resend", { email, redirectTo: "/projects" });
   }
 
-  async function adminLogin() {
-    "use server";
-    const email = process.env.ADMIN_EMAIL;
-    if (!email) return;
-    await signIn("resend", { email, redirectTo: "/projects" });
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
       <Card className="w-full max-w-md">
@@ -56,7 +49,7 @@ export default async function LoginPage() {
             <Button type="submit">Recevoir le lien magique</Button>
           </form>
           {adminEmail && (
-            <form action={adminLogin}>
+            <form action="/api/auth/admin-bypass" method="post">
               <Button type="submit" variant="outline" className="w-full text-xs text-muted-foreground">
                 ⚡ Admin — {adminEmail}
               </Button>
