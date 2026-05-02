@@ -18,7 +18,9 @@
     "https://*.123roulements.com/*",
     "https://*.norelem.com/*",
     "http://localhost:3000/*",
-    "http://localhost:3001/*"
+    "http://localhost:3001/*",
+    "https://auto-bom-web-soh3.vercel.app/*",
+    "https://*.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js",

@@ -38,7 +38,7 @@ function setStatus(msg: string, type: "ok" | "err") {
 function getBase(): Promise<string> {
   return new Promise((res) => {
     chrome.storage.local.get("autobom_base", (r) => {
-      res((r.autobom_base as string) ?? "http://localhost:3001");
+      res((r.autobom_base as string) ?? "https://auto-bom-web-soh3.vercel.app");
     });
   });
 }

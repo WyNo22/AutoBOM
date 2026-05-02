@@ -1,6 +1,6 @@
 import type { CapturedProduct } from "@autbom/shared";
 
-const DEFAULT_BASE = "http://localhost:3001";
+const DEFAULT_BASE = "https://auto-bom-web-soh3.vercel.app";
 
 /** Read settings from chrome.storage.local */
 async function getSettings(): Promise<{ baseUrl: string; token: string }> {
