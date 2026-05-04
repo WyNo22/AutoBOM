@@ -28,6 +28,13 @@ async function sendViaSmtp(params: {
   });
 }
 
+function getMailDriver() {
+  if (process.env.MAIL_DRIVER) return process.env.MAIL_DRIVER;
+  if (process.env.SMTP_HOST) return "smtp";
+  if (process.env.RESEND_API_KEY) return "resend";
+  return "console";
+}
+
 /**
  * Magic link email sender. In dev (MAIL_DRIVER=console) the link is just
  * printed to the server stdout — no SMTP/Resend account required.
@@ -39,7 +46,7 @@ export async function sendMagicLink(params: {
   url: string;
   expires?: Date;
 }) {
-  const driver = process.env.MAIL_DRIVER ?? "console";
+  const driver = getMailDriver();
   const { identifier, url } = params;
 
   if (driver === "console") {
@@ -85,7 +92,7 @@ export async function sendAccountEmail(params: {
   subject: string;
   text: string;
 }) {
-  const driver = process.env.MAIL_DRIVER ?? "console";
+  const driver = getMailDriver();
 
   if (driver === "console") {
     const bar = "─".repeat(72);

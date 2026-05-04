@@ -7,7 +7,11 @@ import { sendAccountEmail } from "@/lib/mail";
 type AccountTokenType = "email_verification" | "password_reset";
 
 function getBaseUrl() {
-  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : undefined;
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined;
+  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? vercelProductionUrl ?? vercelUrl ?? "http://localhost:3000";
 }
 
 export async function createAccountToken(userId: string, type: AccountTokenType, ttlMs: number) {
