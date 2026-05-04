@@ -1,5 +1,6 @@
 import { signIn, auth } from "@/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { loginWithPassword } from "./actions";
 
 export default async function LoginPage() {
   const session = await auth();
@@ -29,15 +31,11 @@ export default async function LoginPage() {
         <CardHeader>
           <CardTitle>AutoBOM</CardTitle>
           <CardDescription>
-            Entre ton email — tu recevras un lien magique pour te connecter.
-            <br />
-            <span className="text-xs">
-              (en dev, le lien est imprimé dans la console du serveur)
-            </span>
+            Connecte-toi avec ton mot de passe ou reçois un lien magique.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <form action={login} className="flex flex-col gap-3">
+          <form action={loginWithPassword} className="flex flex-col gap-3">
             <Input
               type="email"
               name="email"
@@ -46,8 +44,29 @@ export default async function LoginPage() {
               autoFocus
               autoComplete="email"
             />
-            <Button type="submit">Recevoir le lien magique</Button>
+            <Input
+              type="password"
+              name="password"
+              placeholder="Mot de passe"
+              required
+              autoComplete="current-password"
+            />
+            <Button type="submit">Se connecter</Button>
           </form>
+          <div className="h-px bg-border" />
+          <form action={login} className="flex flex-col gap-3">
+            <Input
+              type="email"
+              name="email"
+              placeholder="you@example.com"
+              required
+              autoComplete="email"
+            />
+            <Button type="submit" variant="outline">Recevoir un lien magique</Button>
+          </form>
+          <p className="text-center text-sm text-muted-foreground">
+            Pas encore de compte ? <Link href="/register" className="text-foreground underline">Créer un compte</Link>
+          </p>
           {adminEmail && (
             <form action="/api/auth/admin-bypass" method="post">
               <Button type="submit" variant="outline" className="w-full text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 import "server-only";
 import { auth } from "@/auth";
-import { db, projectMembers, boms, projects } from "@/lib/db";
+import { db, projectMembers, boms, projects, teamMembers } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
@@ -29,6 +29,29 @@ export async function requireProjectMember(projectId: string) {
     .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)))
     .limit(1);
   if (!row) notFound();
+  return { userId, role: row.role };
+}
+
+export async function requireProjectAdmin(projectId: string) {
+  const membership = await requireProjectMember(projectId);
+  if (membership.role !== "admin") notFound();
+  return membership;
+}
+
+export async function requireProjectEditor(projectId: string) {
+  const membership = await requireProjectMember(projectId);
+  if (!["admin", "designer"].includes(membership.role)) notFound();
+  return membership;
+}
+
+export async function requireTeamAdmin(teamId: string) {
+  const userId = await requireUserId();
+  const [row] = await db
+    .select({ role: teamMembers.role })
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+    .limit(1);
+  if (!row || !["owner", "admin"].includes(row.role)) notFound();
   return { userId, role: row.role };
 }
 

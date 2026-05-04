@@ -1,7 +1,7 @@
 "use server";
 
 import { db, boms } from "@/lib/db";
-import { requireProjectMember, requireBomAccess } from "@/lib/auth-helpers";
+import { requireProjectMember, requireBomAccess, requireProjectEditor } from "@/lib/auth-helpers";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
  * Create a new BOM in the given project. Redirects to the new BOM editor.
  */
 export async function createBom(projectId: string, formData: FormData) {
-  await requireProjectMember(projectId);
+  await requireProjectEditor(projectId);
   const name = String(formData.get("name") ?? "").trim() || "Nouvelle BOM";
 
   const [created] = await db

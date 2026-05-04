@@ -28,7 +28,20 @@ export async function POST(req: Request) {
       name: "Admin",
       emailVerified: new Date(),
     });
-    user = { id, email: adminEmail, name: "Admin", emailVerified: new Date(), image: null };
+    user = {
+      id,
+      email: adminEmail,
+      name: "Admin",
+      firstName: null,
+      lastName: null,
+      passwordHash: null,
+      emailVerified: new Date(),
+      image: null,
+    };
+  }
+
+  if (!user) {
+    return NextResponse.json({ error: "Unable to create admin user" }, { status: 500 });
   }
 
   // Create a session row

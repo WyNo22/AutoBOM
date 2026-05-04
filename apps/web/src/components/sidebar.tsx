@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { FolderKanban, Truck, ShoppingCart, CheckSquare, Settings } from "lucide-react";
+import { FolderKanban, Truck, ShoppingCart, CheckSquare, Settings, Users } from "lucide-react";
 
 const NAV = [
   { href: "/projects", label: "Projets", icon: FolderKanban },
+  { href: "/teams", label: "Équipes", icon: Users },
   { href: "/suppliers", label: "Fournisseurs", icon: Truck },
   { href: "/carts", label: "Paniers", icon: ShoppingCart },
   { href: "/validations", label: "Validations", icon: CheckSquare },

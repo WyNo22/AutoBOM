@@ -2,6 +2,8 @@
 
 import { auth } from "@/auth";
 import { db, projects, projectMembers } from "@/lib/db";
+import { requireProjectAdmin } from "@/lib/auth-helpers";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -29,4 +31,21 @@ export async function createProject(formData: FormData) {
 
   revalidatePath("/projects");
   redirect(`/projects/${created.id}`);
+}
+
+export async function renameProject(projectId: string, formData: FormData) {
+  await requireProjectAdmin(projectId);
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  if (!name) return;
+  await db.update(projects).set({ name, description }).where(eq(projects.id, projectId));
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteProject(projectId: string) {
+  await requireProjectAdmin(projectId);
+  await db.delete(projects).where(eq(projects.id, projectId));
+  revalidatePath("/projects");
+  redirect("/projects");
 }

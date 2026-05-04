@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { createProject } from "./actions";
-import { Plus } from "lucide-react";
+import { createProject, deleteProject, renameProject } from "./actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Plus, Trash2 } from "lucide-react";
 
 export default async function ProjectsPage() {
   const session = await auth();
@@ -58,8 +59,8 @@ export default async function ProjectsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((p) => (
-            <Link key={p.id} href={`/projects/${p.id}`}>
-              <Card className="hover:border-foreground/30 transition-colors h-full">
+            <Card key={p.id} className="hover:border-foreground/30 transition-colors h-full">
+              <Link href={`/projects/${p.id}`} className="block">
                 <CardHeader>
                   <CardTitle className="text-base">{p.name}</CardTitle>
                   {p.description && (
@@ -69,8 +70,21 @@ export default async function ProjectsPage() {
                 <CardContent className="text-xs text-muted-foreground">
                   Créé le {formatDate(p.createdAt)}
                 </CardContent>
-              </Card>
-            </Link>
+              </Link>
+              <CardContent className="flex flex-col gap-2 pt-0">
+                <form action={renameProject.bind(null, p.id)} className="flex flex-col gap-2">
+                  <Input name="name" defaultValue={p.name} required />
+                  <Input name="description" defaultValue={p.description ?? ""} placeholder="Description" />
+                  <Button type="submit" variant="outline" size="sm">Renommer</Button>
+                </form>
+                <form action={deleteProject.bind(null, p.id)}>
+                  <ConfirmSubmitButton message={`Supprimer définitivement le projet « ${p.name} » et toutes ses BOMs ?`}>
+                    <Trash2 className="size-3.5" />
+                    Supprimer
+                  </ConfirmSubmitButton>
+                </form>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
