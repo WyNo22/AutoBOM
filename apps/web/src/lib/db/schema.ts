@@ -63,6 +63,26 @@ export const verificationTokens = sqliteTable(
   })
 );
 
+export const accountTokens = sqliteTable(
+  "account_token",
+  {
+    token: text("token").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type", { enum: ["email_verification", "password_reset"] }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    usedAt: integer("used_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => ({
+    userIdx: index("account_token_user_idx").on(t.userId),
+    typeIdx: index("account_token_type_idx").on(t.type),
+  })
+);
+
 // ============================================================================
 // AUTBOM domain tables
 // ============================================================================

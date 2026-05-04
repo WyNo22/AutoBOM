@@ -42,3 +42,38 @@ export async function sendMagicLink(params: {
 
   throw new Error(`Unknown MAIL_DRIVER: ${driver}`);
 }
+
+export async function sendAccountEmail(params: {
+  to: string;
+  subject: string;
+  text: string;
+}) {
+  const driver = process.env.MAIL_DRIVER ?? "console";
+
+  if (driver === "console") {
+    const bar = "─".repeat(72);
+    console.log(
+      `\n${bar}\n✉️  AutoBOM email\n   to:      ${params.to}\n   subject: ${params.subject}\n\n${params.text}\n${bar}\n`
+    );
+    return;
+  }
+
+  if (driver === "resend") {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.MAIL_FROM ?? "AutoBOM <noreply@autobom.app>";
+    if (!apiKey) {
+      throw new Error("MAIL_DRIVER=resend but RESEND_API_KEY is not set");
+    }
+    const { Resend } = await import("resend");
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from,
+      to: params.to,
+      subject: params.subject,
+      text: params.text,
+    });
+    return;
+  }
+
+  throw new Error(`Unknown MAIL_DRIVER: ${driver}`);
+}

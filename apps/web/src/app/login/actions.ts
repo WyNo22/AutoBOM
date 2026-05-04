@@ -2,6 +2,7 @@
 
 import { db, users } from "@/lib/db";
 import { createAuthSession } from "@/lib/auth-session";
+import { sendEmailVerification, sendPasswordReset } from "@/lib/account-email";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -26,12 +27,11 @@ export async function registerWithPassword(formData: FormData) {
       lastName,
       name: `${firstName} ${lastName}`,
       passwordHash: hashPassword(password),
-      emailVerified: new Date(),
     })
     .returning({ id: users.id });
 
-  await createAuthSession(user.id);
-  redirect("/projects");
+  await sendEmailVerification(user.id);
+  redirect("/login/check-email");
 }
 
 export async function loginWithPassword(formData: FormData) {
@@ -41,7 +41,19 @@ export async function loginWithPassword(formData: FormData) {
 
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user || !verifyPassword(password, user.passwordHash)) return;
+  if (!user.emailVerified) {
+    await sendEmailVerification(user.id);
+    redirect("/login/check-email");
+  }
 
   await createAuthSession(user.id);
   redirect("/projects");
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) redirect("/forgot-password/check-email");
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  if (user) await sendPasswordReset(user.id);
+  redirect("/forgot-password/check-email");
 }
