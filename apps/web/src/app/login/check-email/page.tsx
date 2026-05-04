@@ -1,21 +1,45 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Mail } from "lucide-react";
 
-export default function CheckEmailPage() {
+export default async function CheckEmailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
+  const { email } = await searchParams;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Vérifie ta boîte mail</CardTitle>
+        <CardHeader className="items-center text-center">
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+            <Mail className="h-7 w-7 text-primary" />
+          </div>
+          <CardTitle>Vérifiez votre boîte mail</CardTitle>
           <CardDescription>
-            Un lien de connexion vient d&apos;être envoyé. Clique dessus pour accéder à AutoBOM.
-            <br />
-            <span className="text-xs">
-              (en dev avec MAIL_DRIVER=console, le lien apparaît dans la console
-              du serveur Next)
-            </span>
+            {email ? (
+              <>
+                Un lien de vérification a été envoyé à{" "}
+                <span className="font-medium text-foreground">{email}</span>.
+              </>
+            ) : (
+              "Un lien de vérification vient d'être envoyé."
+            )}
+            {" "}Cliquez dessus pour activer votre compte.
           </CardDescription>
         </CardHeader>
-        <CardContent />
+        <CardContent className="flex flex-col gap-3 text-center">
+          <p className="text-xs text-muted-foreground">
+            Vous ne trouvez pas l&apos;email ? Vérifiez vos spams ou{" "}
+            <Link href="/login" className="underline">retentez la connexion</Link>{" "}
+            pour recevoir un nouveau lien.
+          </p>
+          <Button variant="outline" className="w-full">
+            <Link href="/login">Retour à la connexion</Link>
+          </Button>
+        </CardContent>
       </Card>
     </div>
   );

@@ -30,8 +30,8 @@ export async function registerWithPassword(formData: FormData) {
     })
     .returning({ id: users.id });
 
-  await sendEmailVerification(user.id);
-  redirect("/login/check-email");
+  try { await sendEmailVerification(user.id); } catch (e) { console.error("[email] sendEmailVerification failed", e); }
+  redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
 }
 
 export async function loginWithPassword(formData: FormData) {
@@ -42,8 +42,8 @@ export async function loginWithPassword(formData: FormData) {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user || !verifyPassword(password, user.passwordHash)) return;
   if (!user.emailVerified) {
-    await sendEmailVerification(user.id);
-    redirect("/login/check-email");
+    try { await sendEmailVerification(user.id); } catch (e) { console.error("[email] sendEmailVerification failed", e); }
+    redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
   }
 
   await createAuthSession(user.id);
@@ -54,6 +54,8 @@ export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) redirect("/forgot-password/check-email");
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (user) await sendPasswordReset(user.id);
-  redirect("/forgot-password/check-email");
+  if (user) {
+    try { await sendPasswordReset(user.id); } catch (e) { console.error("[email] sendPasswordReset failed", e); }
+  }
+  redirect(`/forgot-password/check-email?email=${encodeURIComponent(email)}`);
 }
