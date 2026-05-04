@@ -7,17 +7,21 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
-export async function registerWithPassword(formData: FormData) {
+export type AuthState = { error: string } | null;
+
+export async function registerWithPassword(prevState: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
 
-  if (!email || !firstName || !lastName || password.length < 8 || password !== confirm) return;
+  if (!email || !firstName || !lastName) return { error: "Tous les champs sont obligatoires." };
+  if (password.length < 8) return { error: "Le mot de passe doit contenir au moins 8 caractères." };
+  if (password !== confirm) return { error: "Les mots de passe ne correspondent pas." };
 
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (existing) return;
+  if (existing) return { error: "Un compte avec cet email existe déjà." };
 
   const [user] = await db
     .insert(users)
@@ -34,13 +38,13 @@ export async function registerWithPassword(formData: FormData) {
   redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
 }
 
-export async function loginWithPassword(formData: FormData) {
+export async function loginWithPassword(prevState: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!email || !password) return;
+  if (!email || !password) return { error: "Email et mot de passe requis." };
 
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (!user || !verifyPassword(password, user.passwordHash)) return;
+  if (!user || !verifyPassword(password, user.passwordHash ?? "")) return { error: "Email ou mot de passe incorrect." };
   if (!user.emailVerified) {
     try { await sendEmailVerification(user.id); } catch (e) { console.error("[email] sendEmailVerification failed", e); }
     redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
@@ -50,7 +54,7 @@ export async function loginWithPassword(formData: FormData) {
   redirect("/projects");
 }
 
-export async function requestPasswordReset(formData: FormData) {
+export async function requestPasswordReset(_prevState: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) redirect("/forgot-password/check-email");
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });

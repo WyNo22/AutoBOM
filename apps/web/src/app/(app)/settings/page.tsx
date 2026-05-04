@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { updatePassword, updateProfile } from "./actions";
+import { updatePassword, updateProfile, deleteAccount } from "./actions";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -37,6 +37,17 @@ export default async function SettingsPage() {
             <Input type="password" name="password" placeholder="Nouveau mot de passe" minLength={8} required autoComplete="new-password" />
             <Input type="password" name="confirm" placeholder="Confirmer le nouveau mot de passe" minLength={8} required autoComplete="new-password" />
             <Button type="submit">Mettre à jour le mot de passe</Button>
+          </form>
+        </CardContent>
+      </Card>
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-base text-destructive">Zone de danger</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">La suppression de ton compte est irréversible. Toutes tes données seront perdues.</p>
+          <form action={deleteAccount} onSubmit={(e) => { if (!confirm("Supprimer définitivement ton compte ? Cette action est irréversible.")) e.preventDefault(); }}>
+            <Button type="submit" variant="destructive">Supprimer mon compte</Button>
           </form>
         </CardContent>
       </Card>

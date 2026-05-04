@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { resetPassword } from "./actions";
+import { ResetForm } from "./reset-form";
 
 export default async function ResetPasswordPage({
   searchParams,
@@ -20,18 +18,15 @@ export default async function ResetPasswordPage({
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {token ? (
-            <form action={resetPassword} className="flex flex-col gap-3">
-              <input type="hidden" name="token" value={token} />
-              <Input type="password" name="password" placeholder="Nouveau mot de passe" minLength={8} required autoComplete="new-password" autoFocus />
-              <Input type="password" name="confirm" placeholder="Confirmer le nouveau mot de passe" minLength={8} required autoComplete="new-password" />
-              <Button type="submit">Mettre à jour le mot de passe</Button>
-            </form>
+            <ResetForm token={token} />
           ) : (
-            <p className="text-sm text-muted-foreground">Lien de réinitialisation manquant.</p>
+            <>
+              <p className="text-sm text-muted-foreground">Lien de réinitialisation manquant.</p>
+              <p className="text-center text-sm text-muted-foreground">
+                <Link href="/forgot-password" className="text-foreground underline">Redemander un lien</Link>
+              </p>
+            </>
           )}
-          <p className="text-center text-sm text-muted-foreground">
-            <Link href="/login" className="text-foreground underline">Retour à la connexion</Link>
-          </p>
         </CardContent>
       </Card>
     </div>

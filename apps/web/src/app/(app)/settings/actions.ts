@@ -5,6 +5,8 @@ import { requireUserId } from "@/lib/auth-helpers";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 export async function updateProfile(formData: FormData) {
   const userId = await requireUserId();
@@ -31,4 +33,12 @@ export async function updatePassword(formData: FormData) {
 
   await db.update(users).set({ passwordHash: hashPassword(password) }).where(eq(users.id, userId));
   revalidatePath("/settings");
+}
+
+export async function deleteAccount() {
+  const userId = await requireUserId();
+  await db.delete(users).where(eq(users.id, userId));
+  const jar = await cookies();
+  jar.delete("session");
+  redirect("/login");
 }
