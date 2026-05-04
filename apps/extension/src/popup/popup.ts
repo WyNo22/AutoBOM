@@ -13,6 +13,7 @@ type Pending = { payload: CapturedProduct; bomId?: string };
 // ── DOM refs
 const viewCapture = document.getElementById("view-capture")!;
 const viewEmpty = document.getElementById("view-empty")!;
+const viewLogin = document.getElementById("view-login")!;
 const viewSettings = document.getElementById("view-settings")!;
 const capName = document.getElementById("cap-name")!;
 const capSupplier = document.getElementById("cap-supplier")!;
@@ -26,11 +27,18 @@ const btnSettingsToggle = document.getElementById("btn-settings-toggle")!;
 const inputBase = document.getElementById("input-base") as HTMLInputElement;
 const btnSaveSettings = document.getElementById("btn-save-settings")!;
 const btnLogin = document.getElementById("btn-login") as HTMLButtonElement;
+const btnLoginMain = document.getElementById("btn-login-main") as HTMLButtonElement;
+const btnRefreshSession = document.getElementById("btn-refresh-session") as HTMLButtonElement;
 const connStatus = document.getElementById("conn-status")!;
 
 // ── Helpers
 function show(el: HTMLElement) { el.classList.remove("hidden"); }
 function hide(el: HTMLElement) { el.classList.add("hidden"); }
+function hideMainViews() {
+  hide(viewCapture);
+  hide(viewEmpty);
+  hide(viewLogin);
+}
 function setStatus(msg: string, type: "ok" | "err") {
   sendStatus.textContent = msg;
   sendStatus.className = `status ${type}`;
@@ -43,6 +51,20 @@ function getBase(): Promise<string> {
       res((r.autobom_base as string) ?? "https://auto-bom-web-soh3.vercel.app");
     });
   });
+}
+
+async function isConnected(base: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${base}/api/me/boms`, { credentials: "include" });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function openLogin() {
+  const base = await getBase();
+  chrome.tabs.create({ url: `${base}/login` });
 }
 
 // ── Load BOMs from API
@@ -87,16 +109,23 @@ async function init() {
   const base = await getBase();
   inputBase.value = base;
 
+  const connected = await isConnected(base);
+  if (!connected) {
+    hideMainViews();
+    show(viewLogin);
+    return;
+  }
+
   chrome.storage.local.get("autobom_pending", async (res) => {
     const raw = res.autobom_pending as string | undefined;
     if (!raw) {
+      hideMainViews();
       show(viewEmpty);
-      hide(viewCapture);
       return;
     }
 
     let pending: Pending;
-    try { pending = JSON.parse(raw) as Pending; } catch { show(viewEmpty); return; }
+    try { pending = JSON.parse(raw) as Pending; } catch { hideMainViews(); show(viewEmpty); return; }
 
     const p = pending.payload;
     capName.textContent = p.designation;
@@ -104,8 +133,8 @@ async function init() {
     capRef.textContent = p.supplierRef ? `Réf: ${p.supplierRef}` : "";
     capPrice.textContent = p.unitPriceHT ? `${p.unitPriceHT.toFixed(2)} € HT` : "";
 
+    hideMainViews();
     show(viewCapture);
-    hide(viewEmpty);
 
     await loadBoms(base);
 
@@ -171,8 +200,15 @@ btnSettingsToggle.addEventListener("click", async (e) => {
 });
 
 btnLogin.addEventListener("click", async () => {
-  const base = await getBase();
-  chrome.tabs.create({ url: `${base}/login` });
+  openLogin();
+});
+
+btnLoginMain.addEventListener("click", () => {
+  openLogin();
+});
+
+btnRefreshSession.addEventListener("click", () => {
+  window.location.reload();
 });
 
 btnSaveSettings.addEventListener("click", () => {
