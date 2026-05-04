@@ -25,6 +25,8 @@ const sendStatus = document.getElementById("send-status")!;
 const btnSettingsToggle = document.getElementById("btn-settings-toggle")!;
 const inputBase = document.getElementById("input-base") as HTMLInputElement;
 const btnSaveSettings = document.getElementById("btn-save-settings")!;
+const btnLogin = document.getElementById("btn-login") as HTMLButtonElement;
+const connStatus = document.getElementById("conn-status")!;
 
 // ── Helpers
 function show(el: HTMLElement) { el.classList.remove("hidden"); }
@@ -141,17 +143,43 @@ async function init() {
   });
 }
 
+// ── Check connection status
+async function checkConnection(base: string) {
+  try {
+    const r = await fetch(`${base}/api/me/boms`, { credentials: "include" });
+    if (r.ok) {
+      connStatus.textContent = "✓ Connecté à AutoBOM";
+      connStatus.style.color = "#16a34a";
+    } else {
+      connStatus.textContent = "✗ Non connecté (clique le bouton ci-dessous)";
+      connStatus.style.color = "#dc2626";
+    }
+  } catch {
+    connStatus.textContent = "✗ Serveur inaccessible";
+    connStatus.style.color = "#dc2626";
+  }
+}
+
 // ── Settings toggle
-btnSettingsToggle.addEventListener("click", (e) => {
+btnSettingsToggle.addEventListener("click", async (e) => {
   e.preventDefault();
   viewSettings.classList.toggle("hidden");
+  if (!viewSettings.classList.contains("hidden")) {
+    const base = await getBase();
+    checkConnection(base);
+  }
+});
+
+btnLogin.addEventListener("click", async () => {
+  const base = await getBase();
+  chrome.tabs.create({ url: `${base}/login` });
 });
 
 btnSaveSettings.addEventListener("click", () => {
   const base = inputBase.value.trim().replace(/\/$/, "");
   chrome.storage.local.set({ autobom_base: base }, () => {
     btnSaveSettings.textContent = "Enregistré ✓";
-    setTimeout(() => { btnSaveSettings.textContent = "Enregistrer"; }, 1500);
+    setTimeout(() => { btnSaveSettings.textContent = "Enregistrer l'URL"; }, 1500);
   });
 });
 

@@ -3,7 +3,7 @@
   "name": "AutoBOM",
   "version": "0.0.1",
   "description": "Capturez des références produit et envoyez-les directement dans AutoBOM.",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "host_permissions": [
     "https://*.tolery.fr/*",
     "https://*.tolery.com/*",

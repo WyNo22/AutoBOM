@@ -47,8 +47,8 @@ export async function POST(req: Request) {
   const cookieStore = await cookies();
   cookieStore.set(cookieName, sessionToken, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: isProd,
+    sameSite: "none",
+    secure: true,
     path: "/",
     expires,
   });

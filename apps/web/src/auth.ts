@@ -13,6 +13,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   session: { strategy: "database" },
+  cookies: {
+    sessionToken: {
+      options: {
+        httpOnly: true,
+        sameSite: "none" as const,
+        secure: true,
+        path: "/",
+      },
+    },
+  },
   pages: {
     signIn: "/login",
     verifyRequest: "/login/check-email",

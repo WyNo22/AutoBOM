@@ -102,11 +102,16 @@
 
     <!-- Settings -->
     <div id="view-settings" class="section hidden">
-      <div class="label">URL serveur AUTBOM</div>
+      <div class="label">Connexion</div>
       <div class="gap"></div>
-      <input type="text" id="input-base" placeholder="http://localhost:3001" />
+      <div id="conn-status" style="font-size:12px;color:#64748b;margin-bottom:6px">Vérification…</div>
+      <button class="btn btn-primary" id="btn-login">Ouvrir AutoBOM &amp; se connecter</button>
       <div class="gap"></div>
-      <button class="btn btn-primary" id="btn-save-settings">Enregistrer</button>
+      <div class="label" style="margin-top:8px">URL serveur AutoBOM</div>
+      <div class="gap"></div>
+      <input type="text" id="input-base" placeholder="https://auto-bom-web-soh3.vercel.app" />
+      <div class="gap"></div>
+      <button class="btn btn-ghost" id="btn-save-settings">Enregistrer l'URL</button>
     </div>
 
     <script src="popup.js" type="module"></script>
