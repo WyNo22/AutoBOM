@@ -52,6 +52,12 @@ type Line = {
 
 type Supplier = { id: string; name: string };
 
+type SourcingTarget = {
+  label: string;
+  hint: string;
+  buildUrl: (query: string) => string;
+};
+
 type ColumnKey =
   | "designation"
   | "qty"
@@ -97,6 +103,23 @@ const STATUS_COLOR: Record<BomLineStatus, string> = {
   cancelled: "bg-rose-100 text-rose-900",
 };
 
+const SOURCING_TARGETS: SourcingTarget[] = [
+  { label: "Google", hint: "recherche large", buildUrl: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
+  { label: "Amazon", hint: "marketplace", buildUrl: (q) => `https://www.amazon.fr/s?k=${encodeURIComponent(q)}` },
+  { label: "AliExpress", hint: "marketplace", buildUrl: (q) => `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(q)}` },
+  { label: "eBay", hint: "neuf / occasion", buildUrl: (q) => `https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(q)}` },
+  { label: "Leboncoin", hint: "seconde main", buildUrl: (q) => `https://www.leboncoin.fr/recherche?text=${encodeURIComponent(q)}` },
+  { label: "ManoMano", hint: "bricolage", buildUrl: (q) => `https://www.manomano.fr/recherche/${encodeURIComponent(q)}` },
+  { label: "RS", hint: "pro industriel", buildUrl: (q) => `https://fr.rs-online.com/web/c/?searchTerm=${encodeURIComponent(q)}` },
+  { label: "Misumi", hint: "mécanique", buildUrl: (q) => `https://fr.misumi-ec.com/vona2/result/?Keyword=${encodeURIComponent(q)}` },
+  { label: "Conrad", hint: "électronique", buildUrl: (q) => `https://www.conrad.fr/fr/search.html?search=${encodeURIComponent(q)}` },
+  { label: "Farnell", hint: "composants", buildUrl: (q) => `https://fr.farnell.com/search?st=${encodeURIComponent(q)}` },
+  { label: "Mouser", hint: "composants", buildUrl: (q) => `https://www.mouser.fr/c/?q=${encodeURIComponent(q)}` },
+  { label: "Digi-Key", hint: "composants", buildUrl: (q) => `https://www.digikey.fr/fr/products/result?keywords=${encodeURIComponent(q)}` },
+  { label: "Würth", hint: "fixations / pro", buildUrl: (q) => `https://eshop.wurth.fr/Categories-produits/Recherche-produits/310000.cyid/3100.cgid/fr/FR/EUR/?text=${encodeURIComponent(q)}` },
+  { label: "Bricozor", hint: "quincaillerie", buildUrl: (q) => `https://www.bricozor.com/recherche.html?query=${encodeURIComponent(q)}` },
+];
+
 // ────────────────────────────────────────────────────────────────────────────
 // Editor component
 // ────────────────────────────────────────────────────────────────────────────
@@ -125,6 +148,7 @@ export function BomEditor({
   const [attachMap, setAttachMap] = React.useState<Record<string, Attachment[]>>({});
   // which lineId has attachments panel open
   const [attachOpen, setAttachOpen] = React.useState<string | null>(null);
+  const [sourcingLineId, setSourcingLineId] = React.useState<string | null>(null);
   // DXF preview state
   const [dxfPreview, setDxfPreview] = React.useState<{ name: string; svg: string } | null>(null);
 
@@ -232,6 +256,20 @@ export function BomEditor({
   const handleKeyNav = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>, lineId: string, colKey: ColumnKey) => {
       if (e.key !== "Tab" && e.key !== "Enter") return;
+      const currentLine = visibleLines.find((l) => l.id === lineId);
+      const shouldOfferSourcing =
+        e.key === "Enter" &&
+        colKey === "designation" &&
+        currentLine &&
+        currentLine.designation.trim().length > 2 &&
+        !currentLine.productUrl &&
+        !currentLine.supplierRef &&
+        currentLine.status === "to_source";
+      if (shouldOfferSourcing) {
+        e.preventDefault();
+        setSourcingLineId((prev) => (prev === lineId ? null : lineId));
+        return;
+      }
       const lineIdx = visibleLines.findIndex((l) => l.id === lineId);
       const colIdx = COLUMNS.findIndex((c) => c.key === colKey);
       if (lineIdx < 0 || colIdx < 0) return;
@@ -278,6 +316,10 @@ export function BomEditor({
     },
     [visibleLines, handleAddLine]
   );
+
+  function openSourcingTarget(target: SourcingTarget, query: string) {
+    window.open(target.buildUrl(query), "_blank", "noopener,noreferrer");
+  }
 
   // ── Toggle row selection
   function toggleRow(id: string, e: React.MouseEvent) {
@@ -556,6 +598,46 @@ export function BomEditor({
                     </button>
                   </td>
                 </tr>
+                {sourcingLineId === line.id && (
+                  <tr className="bg-blue-50/60 border-b border-blue-100">
+                    <td />
+                    <td colSpan={COLUMNS.length + 1} className="px-2 py-2">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="text-xs font-medium text-blue-950">
+                              Sourcer « {line.designation} »
+                            </div>
+                            <div className="text-[11px] text-blue-900/70">
+                              Ouvre une recherche fournisseur, puis capture le produit trouvé avec l'extension.
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSourcingLineId(null)}
+                            className="text-xs text-blue-900/70 hover:text-blue-950"
+                          >
+                            Continuer sans sourcer
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {SOURCING_TARGETS.map((target) => (
+                            <button
+                              key={target.label}
+                              type="button"
+                              onClick={() => openSourcingTarget(target, line.designation)}
+                              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs text-blue-950 hover:bg-blue-100"
+                              title={target.hint}
+                            >
+                              <ExternalLink className="size-3" />
+                              {target.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 {/* Attachments sub-row */}
                 {attachOpen === line.id && (
                   <tr className="bg-muted/20 border-b border-border">
@@ -658,6 +740,7 @@ function CellRenderer({
     <InlineInput
       value={raw == null ? "" : String(raw)}
       type={column.type === "number" ? "number" : "text"}
+      placeholder={column.key === "designation" ? "Tape ton besoin..." : undefined}
       onSave={onSave}
       onKeyNav={onKeyNav}
     />
@@ -671,11 +754,13 @@ function CellRenderer({
 function InlineInput({
   value,
   type,
+  placeholder,
   onSave,
   onKeyNav,
 }: {
   value: string;
   type: "text" | "number";
+  placeholder?: string;
   onSave: (value: unknown) => void;
   onKeyNav: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }) {
@@ -700,6 +785,7 @@ function InlineInput({
       type={type === "number" ? "text" : "text"}
       inputMode={type === "number" ? "decimal" : undefined}
       value={local}
+      placeholder={placeholder}
       onChange={(e) => {
         const v = e.target.value;
         setLocal(v);

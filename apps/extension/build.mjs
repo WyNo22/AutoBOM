@@ -27,6 +27,7 @@ const ctx = await esbuild.context({
     "content/amazon": "src/content/amazon.ts",
     "content/misumi": "src/content/misumi.ts",
     "content/rs": "src/content/rs.ts",
+    "content/generic": "src/content/generic.ts",
     "popup": "src/popup/popup.ts",
   },
   outdir,

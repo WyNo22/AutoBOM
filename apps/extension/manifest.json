@@ -17,6 +17,23 @@
     "https://*.bricovis.fr/*",
     "https://*.123roulements.com/*",
     "https://*.norelem.com/*",
+    "https://*.aliexpress.com/*",
+    "https://*.alibaba.com/*",
+    "https://*.ebay.fr/*",
+    "https://*.ebay.com/*",
+    "https://*.leboncoin.fr/*",
+    "https://*.manomano.fr/*",
+    "https://*.conrad.fr/*",
+    "https://*.farnell.com/*",
+    "https://*.mouser.fr/*",
+    "https://*.digikey.fr/*",
+    "https://*.wurth.fr/*",
+    "https://*.bricozor.com/*",
+    "https://*.bricodepot.fr/*",
+    "https://*.castorama.fr/*",
+    "https://*.igus.fr/*",
+    "https://*.festo.com/*",
+    "https://*.smc.eu/*",
     "http://localhost:3000/*",
     "http://localhost:3001/*",
     "https://auto-bom-web-soh3.vercel.app/*",
@@ -46,6 +63,33 @@
     {
       "matches": ["https://*.rs-online.com/*", "https://*.rsonline.fr/*"],
       "js": ["content/rs.js"]
+    },
+    {
+      "matches": [
+        "https://*.xometry.eu/*",
+        "https://*.leroymerlin.fr/*",
+        "https://*.bricovis.fr/*",
+        "https://*.123roulements.com/*",
+        "https://*.norelem.com/*",
+        "https://*.aliexpress.com/*",
+        "https://*.alibaba.com/*",
+        "https://*.ebay.fr/*",
+        "https://*.ebay.com/*",
+        "https://*.leboncoin.fr/*",
+        "https://*.manomano.fr/*",
+        "https://*.conrad.fr/*",
+        "https://*.farnell.com/*",
+        "https://*.mouser.fr/*",
+        "https://*.digikey.fr/*",
+        "https://*.wurth.fr/*",
+        "https://*.bricozor.com/*",
+        "https://*.bricodepot.fr/*",
+        "https://*.castorama.fr/*",
+        "https://*.igus.fr/*",
+        "https://*.festo.com/*",
+        "https://*.smc.eu/*"
+      ],
+      "js": ["content/generic.js"]
     }
   ]
 }

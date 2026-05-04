@@ -142,6 +142,23 @@ export const KNOWN_SUPPLIER_SITES = [
   "bricovis",
   "123roulements",
   "norelem",
+  "aliexpress",
+  "alibaba",
+  "ebay",
+  "leboncoin",
+  "manomano",
+  "conrad",
+  "farnell",
+  "mouser",
+  "digikey",
+  "wurth",
+  "bricozor",
+  "bricodepot",
+  "castorama",
+  "igus",
+  "festo",
+  "smc",
+  "generic",
 ] as const;
 export type KnownSupplierSite = (typeof KNOWN_SUPPLIER_SITES)[number];
 
