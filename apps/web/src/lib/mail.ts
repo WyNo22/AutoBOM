@@ -1,5 +1,33 @@
 import "server-only";
 
+async function sendViaSmtp(params: {
+  to: string;
+  subject: string;
+  text: string;
+}) {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT ?? 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.MAIL_FROM ?? user ?? "AutoBOM <noreply@example.com>";
+  if (!host || !user || !pass) {
+    throw new Error("MAIL_DRIVER=smtp but SMTP_HOST/SMTP_USER/SMTP_PASS are not set");
+  }
+  const nodemailer = await import("nodemailer");
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+  await transporter.sendMail({
+    from,
+    to: params.to,
+    subject: params.subject,
+    text: params.text,
+  });
+}
+
 /**
  * Magic link email sender. In dev (MAIL_DRIVER=console) the link is just
  * printed to the server stdout — no SMTP/Resend account required.
@@ -40,6 +68,15 @@ export async function sendMagicLink(params: {
     return;
   }
 
+  if (driver === "smtp") {
+    await sendViaSmtp({
+      to: identifier,
+      subject: "Votre lien de connexion AutoBOM",
+      text: `Connectez-vous à AutoBOM :\n\n${url}\n\nCe lien expire bientôt.`,
+    });
+    return;
+  }
+
   throw new Error(`Unknown MAIL_DRIVER: ${driver}`);
 }
 
@@ -72,6 +109,11 @@ export async function sendAccountEmail(params: {
       subject: params.subject,
       text: params.text,
     });
+    return;
+  }
+
+  if (driver === "smtp") {
+    await sendViaSmtp(params);
     return;
   }
 
