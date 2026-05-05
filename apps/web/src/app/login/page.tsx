@@ -7,7 +7,8 @@ export default async function LoginPage() {
   const session = await auth();
   if (session?.user) redirect("/projects");
 
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const devBypassEnabled = process.env.NODE_ENV !== "production" || process.env.DEV_AUTH_BYPASS === "true";
+  const adminEmail = devBypassEnabled ? process.env.ADMIN_EMAIL ?? "dev@autbom.local" : undefined;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-6">

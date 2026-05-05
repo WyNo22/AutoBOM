@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       passwordHash: null,
       emailVerified: new Date(),
       image: null,
+      aiSourcingEnabled: true,
     };
   }
 

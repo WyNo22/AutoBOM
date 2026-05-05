@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  Plus, Trash2, Search, ExternalLink, ChevronDown,
+  Plus, Trash2, Search, ExternalLink, ChevronDown, Sparkles,
   Paperclip, X, Eye, Download, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,28 @@ type SourcingTarget = {
   label: string;
   hint: string;
   buildUrl: (query: string) => string;
+};
+
+type AiSourcingSuggestion = {
+  title: string;
+  supplier: string | null;
+  url: string;
+  priceHint: string | null;
+  confidence: number;
+  notes: string;
+  matchedCriteria: string[];
+  missingCriteria: string[];
+};
+
+type AiSourcingState = {
+  loading: boolean;
+  error: string | null;
+  suggestions: AiSourcingSuggestion[];
+  parsed?: {
+    requiredTerms?: string[];
+    preferredSites?: string[];
+    queries?: string[];
+  };
 };
 
 type ColumnKey =
@@ -131,6 +153,7 @@ export function BomEditor({
   bomStatus,
   initialLines,
   initialSuppliers,
+  initialAiSourcingEnabled,
 }: {
   bomId: string;
   projectId: string;
@@ -138,6 +161,7 @@ export function BomEditor({
   bomStatus: string;
   initialLines: Line[];
   initialSuppliers: Supplier[];
+  initialAiSourcingEnabled: boolean;
 }) {
   const [lines, setLines] = React.useState<Line[]>(initialLines);
   const [suppliers, setSuppliers] = React.useState<Supplier[]>(initialSuppliers);
@@ -149,6 +173,8 @@ export function BomEditor({
   // which lineId has attachments panel open
   const [attachOpen, setAttachOpen] = React.useState<string | null>(null);
   const [sourcingLineId, setSourcingLineId] = React.useState<string | null>(null);
+  const [aiSourcingEnabled, setAiSourcingEnabled] = React.useState(initialAiSourcingEnabled);
+  const [aiSourcing, setAiSourcing] = React.useState<Record<string, AiSourcingState>>({});
   // DXF preview state
   const [dxfPreview, setDxfPreview] = React.useState<{ name: string; svg: string } | null>(null);
 
@@ -268,6 +294,9 @@ export function BomEditor({
       if (shouldOfferSourcing) {
         e.preventDefault();
         setSourcingLineId((prev) => (prev === lineId ? null : lineId));
+        if (aiSourcingEnabled && !aiSourcing[lineId]?.loading && !aiSourcing[lineId]?.suggestions.length) {
+          loadAiSuggestions(currentLine);
+        }
         return;
       }
       const lineIdx = visibleLines.findIndex((l) => l.id === lineId);
@@ -314,11 +343,89 @@ export function BomEditor({
       el?.focus();
       if (el instanceof HTMLInputElement) el.select();
     },
-    [visibleLines, handleAddLine]
+    [visibleLines, handleAddLine, aiSourcingEnabled, aiSourcing]
   );
 
   function openSourcingTarget(target: SourcingTarget, query: string) {
     window.open(target.buildUrl(query), "_blank", "noopener,noreferrer");
+  }
+
+  async function loadAiSuggestions(line: Line) {
+    setAiSourcing((prev) => ({
+      ...prev,
+      [line.id]: { loading: true, error: null, suggestions: prev[line.id]?.suggestions ?? [], parsed: prev[line.id]?.parsed },
+    }));
+    try {
+      const res = await fetch("/api/sourcing/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bomId, designation: line.designation }),
+      });
+      const data = await res.json() as {
+        error?: string;
+        parsed?: AiSourcingState["parsed"];
+        suggestions?: AiSourcingSuggestion[];
+        warning?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Recherche IA impossible");
+      setAiSourcing((prev) => ({
+        ...prev,
+        [line.id]: {
+          loading: false,
+          error: data.warning ?? null,
+          suggestions: data.suggestions ?? [],
+          parsed: data.parsed,
+        },
+      }));
+    } catch (error) {
+      setAiSourcing((prev) => ({
+        ...prev,
+        [line.id]: {
+          loading: false,
+          error: error instanceof Error ? error.message : "Recherche IA impossible",
+          suggestions: [],
+        },
+      }));
+    }
+  }
+
+  async function applyAiSuggestion(line: Line, suggestion: AiSourcingSuggestion) {
+    setSavingCount((c) => c + 1);
+    try {
+      const detected = detectSupplierFromUrl(suggestion.url);
+      let supplierId = line.supplierId;
+      if (!supplierId) {
+        const supplierName = detected?.name ?? suggestion.supplier;
+        if (supplierName) {
+          const existing = suppliers.find((s) => s.name.toLowerCase() === supplierName.toLowerCase());
+          supplierId = existing?.id ?? await handleCreateSupplier(supplierName, line.id);
+        }
+      }
+      const notes = [
+        suggestion.notes,
+        suggestion.priceHint ? `Prix détecté: ${suggestion.priceHint}` : null,
+        suggestion.matchedCriteria.length > 0 ? `Critères: ${suggestion.matchedCriteria.join(", ")}` : null,
+        suggestion.missingCriteria.length > 0 ? `À vérifier: ${suggestion.missingCriteria.join(", ")}` : null,
+      ].filter(Boolean).join("\n");
+      setLines((prev) => prev.map((l) => l.id === line.id ? {
+        ...l,
+        supplierId: supplierId ?? l.supplierId,
+        productUrl: suggestion.url,
+        notes,
+        status: "to_validate",
+      } : l));
+      await updateLine(bomId, line.id, {
+        supplierId: supplierId ?? null,
+        productUrl: suggestion.url,
+        notes,
+        status: "to_validate",
+      });
+      setSourcingLineId(null);
+      const isLast = visibleLines[visibleLines.length - 1]?.id === line.id;
+      if (isLast) await handleAddLine();
+    } finally {
+      setSavingCount((c) => c - 1);
+    }
   }
 
   // ── Toggle row selection
@@ -490,6 +597,16 @@ export function BomEditor({
         </Button>
 
         <Button
+          onClick={() => setAiSourcingEnabled((enabled) => !enabled)}
+          size="sm"
+          variant={aiSourcingEnabled ? "default" : "outline"}
+          title="Bascule locale. Le réglage permanent est dans Settings."
+        >
+          <Sparkles className="size-4" />
+          IA {aiSourcingEnabled ? "on" : "off"}
+        </Button>
+
+        <Button
           onClick={handleDeleteSelected}
           size="sm"
           variant="outline"
@@ -602,6 +719,15 @@ export function BomEditor({
                   <tr className="bg-blue-50/60 border-b border-blue-100">
                     <td />
                     <td colSpan={COLUMNS.length + 1} className="px-2 py-2">
+                      {aiSourcingEnabled ? (
+                        <AiSourcingPanel
+                          line={line}
+                          state={aiSourcing[line.id] ?? { loading: false, error: null, suggestions: [] }}
+                          onRefresh={() => loadAiSuggestions(line)}
+                          onApply={(suggestion: AiSourcingSuggestion) => applyAiSuggestion(line, suggestion)}
+                          onSkip={() => setSourcingLineId(null)}
+                        />
+                      ) : (
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center justify-between gap-2">
                           <div>
@@ -635,6 +761,7 @@ export function BomEditor({
                           ))}
                         </div>
                       </div>
+                      )}
                     </td>
                   </tr>
                 )}
@@ -681,6 +808,122 @@ export function BomEditor({
 // ────────────────────────────────────────────────────────────────────────────
 // CellRenderer — dispatches to the right input/widget per column
 // ────────────────────────────────────────────────────────────────────────────
+
+function AiSourcingPanel({
+  line,
+  state,
+  onRefresh,
+  onApply,
+  onSkip,
+}: {
+  line: Line;
+  state: AiSourcingState;
+  onRefresh: () => void;
+  onApply: (suggestion: AiSourcingSuggestion) => void;
+  onSkip: () => void;
+}) {
+  const loadingTexts = [
+    "Analyse des critères techniques…",
+    "Détection du fournisseur demandé…",
+    "Recherche de vrais produits web…",
+    "Classement des 3 meilleurs résultats…",
+  ];
+  const [loadingIndex, setLoadingIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!state.loading) return;
+    const id = window.setInterval(() => {
+      setLoadingIndex((idx) => (idx + 1) % loadingTexts.length);
+    }, 1200);
+    return () => window.clearInterval(id);
+  }, [state.loading, loadingTexts.length]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-950">
+            <Sparkles className="size-3.5" />
+            Sourcing IA « {line.designation} »
+          </div>
+          <div className="text-[11px] text-blue-900/70">
+            L’IA respecte les sites cités et les critères techniques détectés.
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onRefresh} className="text-xs text-blue-900/70 hover:text-blue-950">
+            Relancer
+          </button>
+          <button type="button" onClick={onSkip} className="text-xs text-blue-900/70 hover:text-blue-950">
+            Continuer sans sourcer
+          </button>
+        </div>
+      </div>
+
+      {state.loading && (
+        <div className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs text-blue-950">
+          <span className="inline-block animate-pulse">{loadingTexts[loadingIndex]}</span>
+        </div>
+      )}
+
+      {state.error && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          {state.error}
+        </div>
+      )}
+
+      {(state.parsed?.requiredTerms?.length || state.parsed?.preferredSites?.length) && (
+        <div className="flex flex-wrap gap-1.5">
+          {(state.parsed.preferredSites ?? []).map((site) => (
+            <span key={`site-${site}`} className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-950">
+              site: {site}
+            </span>
+          ))}
+          {(state.parsed.requiredTerms ?? []).slice(0, 8).map((term) => (
+            <span key={`term-${term}`} className="rounded-full bg-white px-2 py-0.5 text-[11px] text-blue-950 border border-blue-100">
+              {term}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {state.suggestions.length > 0 && (
+        <div className="grid gap-2 md:grid-cols-3">
+          {state.suggestions.map((suggestion) => (
+            <div key={suggestion.url} className="rounded-md border border-blue-200 bg-white p-3 text-xs text-blue-950">
+              <div className="font-medium line-clamp-2">{suggestion.title}</div>
+              <div className="mt-1 text-[11px] text-blue-900/70">
+                {suggestion.supplier ?? "Fournisseur détecté"} · confiance {suggestion.confidence}%
+              </div>
+              {suggestion.priceHint && (
+                <div className="mt-1 text-[11px] text-blue-900">Prix: {suggestion.priceHint}</div>
+              )}
+              <p className="mt-2 line-clamp-3 text-[11px] text-blue-900/80">{suggestion.notes}</p>
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onApply(suggestion)}
+                  className="rounded-md bg-blue-600 px-2 py-1 text-white hover:bg-blue-700"
+                >
+                  Sélectionner
+                </button>
+                <a href={suggestion.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-800 hover:underline">
+                  Ouvrir <ExternalLink className="size-3" />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!state.loading && !state.error && state.suggestions.length === 0 && (
+        <div className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs text-blue-950">
+          Aucune suggestion chargée. Clique sur Relancer pour chercher.
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CellRenderer({
   line,

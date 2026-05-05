@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { db, bomLines, suppliers } from "@/lib/db";
+import { db, bomLines, suppliers, users } from "@/lib/db";
 import { requireBomAccess } from "@/lib/auth-helpers";
 import { eq, asc } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
@@ -11,15 +11,16 @@ export default async function BomDetailPage({
   params: Promise<{ id: string; bomId: string }>;
 }) {
   const { id: projectId, bomId } = await params;
-  const { bom, project } = await requireBomAccess(bomId);
+  const { userId, bom, project } = await requireBomAccess(bomId);
 
-  const [lines, suppliersList] = await Promise.all([
+  const [lines, suppliersList, user] = await Promise.all([
     db
       .select()
       .from(bomLines)
       .where(eq(bomLines.bomId, bomId))
       .orderBy(asc(bomLines.position)),
     db.select({ id: suppliers.id, name: suppliers.name }).from(suppliers).orderBy(asc(suppliers.name)),
+    db.query.users.findFirst({ where: eq(users.id, userId) }),
   ]);
 
   return (
@@ -40,6 +41,7 @@ export default async function BomDetailPage({
         bomStatus={bom.status}
         initialLines={lines}
         initialSuppliers={suppliersList}
+        initialAiSourcingEnabled={user?.aiSourcingEnabled ?? true}
       />
     </div>
   );
