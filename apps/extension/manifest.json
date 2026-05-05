@@ -3,39 +3,7 @@
   "name": "AutoBOM",
   "version": "0.0.1",
   "description": "Capturez des références produit et envoyez-les directement dans AutoBOM.",
-  "permissions": ["storage", "activeTab", "scripting", "tabs"],
-  "host_permissions": [
-    "https://*.tolery.fr/*",
-    "https://*.tolery.com/*",
-    "https://*.xometry.eu/*",
-    "https://*.amazon.fr/*",
-    "https://*.amazon.com/*",
-    "https://*.misumi-ec.com/*",
-    "https://*.rs-online.com/*",
-    "https://*.rsonline.fr/*",
-    "https://*.leroymerlin.fr/*",
-    "https://*.bricovis.fr/*",
-    "https://*.123roulements.com/*",
-    "https://*.norelem.com/*",
-    "https://*.aliexpress.com/*",
-    "https://*.alibaba.com/*",
-    "https://*.ebay.fr/*",
-    "https://*.ebay.com/*",
-    "https://*.leboncoin.fr/*",
-    "https://*.manomano.fr/*",
-    "https://*.conrad.fr/*",
-    "https://*.farnell.com/*",
-    "https://*.mouser.fr/*",
-    "https://*.digikey.fr/*",
-    "https://*.wurth.fr/*",
-    "https://*.bricozor.com/*",
-    "https://*.bricodepot.fr/*",
-    "https://*.castorama.fr/*",
-    "https://*.igus.fr/*",
-    "https://*.festo.com/*",
-    "https://*.smc.eu/*",
-    "https://auto-bom-web-soh3.vercel.app/*"
-  ],
+  "permissions": ["storage", "activeTab", "scripting"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -53,50 +21,5 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://*.tolery.fr/*", "https://*.tolery.com/*"],
-      "js": ["content/tolery.js"]
-    },
-    {
-      "matches": ["https://*.amazon.fr/*", "https://*.amazon.com/*"],
-      "js": ["content/amazon.js"]
-    },
-    {
-      "matches": ["https://*.misumi-ec.com/*"],
-      "js": ["content/misumi.js"]
-    },
-    {
-      "matches": ["https://*.rs-online.com/*", "https://*.rsonline.fr/*"],
-      "js": ["content/rs.js"]
-    },
-    {
-      "matches": [
-        "https://*.xometry.eu/*",
-        "https://*.leroymerlin.fr/*",
-        "https://*.bricovis.fr/*",
-        "https://*.123roulements.com/*",
-        "https://*.norelem.com/*",
-        "https://*.aliexpress.com/*",
-        "https://*.alibaba.com/*",
-        "https://*.ebay.fr/*",
-        "https://*.ebay.com/*",
-        "https://*.leboncoin.fr/*",
-        "https://*.manomano.fr/*",
-        "https://*.conrad.fr/*",
-        "https://*.farnell.com/*",
-        "https://*.mouser.fr/*",
-        "https://*.digikey.fr/*",
-        "https://*.wurth.fr/*",
-        "https://*.bricozor.com/*",
-        "https://*.bricodepot.fr/*",
-        "https://*.castorama.fr/*",
-        "https://*.igus.fr/*",
-        "https://*.festo.com/*",
-        "https://*.smc.eu/*"
-      ],
-      "js": ["content/generic.js"]
-    }
-  ]
+  }
 }

@@ -15,7 +15,6 @@
         color: #f1f5f9;
       }
 
-      /* ── Header ── */
       .header {
         background: #07071a;
         border-bottom: 1px solid rgba(255,255,255,0.07);
@@ -26,13 +25,9 @@
       }
       .header-brand { display: flex; align-items: center; gap: 8px; }
       .header-brand span { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; color: #f1f5f9; }
-      .header a {
-        font-size: 11px; color: rgba(255,255,255,0.35);
-        text-decoration: none; transition: color .15s;
-      }
+      .header a { font-size: 11px; color: rgba(255,255,255,0.35); text-decoration: none; transition: color .15s; cursor: pointer; }
       .header a:hover { color: rgba(255,255,255,0.7); }
 
-      /* ── Sections ── */
       .section { padding: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); }
       .section:last-child { border-bottom: none; }
 
@@ -41,15 +36,14 @@
         text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
       }
 
-      /* ── Product card ── */
       .product-card {
         background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.08);
         border-radius: 8px;
         padding: 10px 12px;
       }
-      .product-name { font-weight: 600; font-size: 13px; line-height: 1.4; color: #f1f5f9; margin-bottom: 5px; }
-      .product-meta { font-size: 11px; color: rgba(255,255,255,0.4); display: flex; flex-wrap: wrap; gap: 8px; }
+      .product-name { font-weight: 600; font-size: 13px; line-height: 1.4; color: #f1f5f9; margin-bottom: 5px; word-break: break-word; }
+      .product-meta { font-size: 11px; color: rgba(255,255,255,0.4); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
       .tag {
         background: rgba(99,102,241,0.15);
         border: 1px solid rgba(99,102,241,0.25);
@@ -59,8 +53,7 @@
         color: #a5b4fc;
       }
 
-      /* ── Inputs ── */
-      select, input[type=text] {
+      input[type=text] {
         width: 100%;
         padding: 7px 10px;
         border: 1px solid rgba(255,255,255,0.1);
@@ -70,16 +63,12 @@
         color: #f1f5f9;
         outline: none;
         transition: border-color .15s, box-shadow .15s;
-        appearance: none;
       }
-      select { cursor: pointer; }
-      select option { background: #1e1b4b; color: #f1f5f9; }
-      select:focus, input:focus {
+      input:focus {
         border-color: #6366f1;
         box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
       }
 
-      /* ── Buttons ── */
       .btn {
         display: block; width: 100%; padding: 9px;
         border: none; border-radius: 7px;
@@ -97,36 +86,26 @@
       }
       .btn-ghost:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
 
-      /* ── Status ── */
-      .status {
-        font-size: 12px; padding: 8px 14px;
-        display: flex; align-items: center; gap: 6px;
-      }
-      .status.ok  { color: #34d399; }
-      .status.err { color: #f87171; }
-
-      /* ── Hero (empty / login) ── */
       .hero {
         display: flex; flex-direction: column;
         align-items: center; text-align: center;
         padding: 24px 16px 20px;
         gap: 14px;
       }
-      .hero-text { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6; max-width: 240px; }
+      .hero-text { font-size: 12.5px; color: rgba(255,255,255,0.45); line-height: 1.6; max-width: 260px; }
       .hero-title { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
-
-      /* ── Connection status ── */
-      .conn-badge {
-        display: inline-flex; align-items: center; gap: 5px;
-        font-size: 12px; color: rgba(255,255,255,0.4);
-        margin-bottom: 10px;
-      }
-      .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-      .conn-badge.ok  { color: #34d399; }
-      .conn-badge.err { color: #f87171; }
 
       .gap { height: 8px; }
       .hidden { display: none !important; }
+
+      .spinner {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        border: 3px solid rgba(99,102,241,0.2);
+        border-top-color: #6366f1;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
     </style>
   </head>
   <body>
@@ -142,37 +121,42 @@
         </svg>
         <span>AutoBOM</span>
       </div>
-      <a href="#" id="btn-settings-toggle">Réglages</a>
+      <a id="btn-settings-toggle">Réglages</a>
     </div>
 
-    <!-- ── View: capture pending ── -->
-    <div id="view-capture" class="hidden">
+    <!-- ── View: loading ── -->
+    <div id="view-loading">
+      <div class="hero">
+        <div class="spinner"></div>
+        <div class="hero-text">Analyse de la page en cours…</div>
+      </div>
+    </div>
+
+    <!-- ── View: product detected ── -->
+    <div id="view-product" class="hidden">
       <div class="section">
-        <div class="label">Produit capturé</div>
+        <div class="label">Produit détecté</div>
         <div class="product-card">
           <div class="product-name" id="cap-name"></div>
           <div class="product-meta">
             <span id="cap-supplier"></span>
             <span id="cap-ref"></span>
-            <span id="cap-price" class="tag"></span>
+            <span id="cap-price" class="tag hidden"></span>
           </div>
         </div>
       </div>
       <div class="section">
-        <div class="label">Ajouter à la BOM</div>
-        <select id="bom-select"><option value="">Chargement…</option></select>
-        <div class="gap"></div>
-        <button class="btn btn-primary" id="btn-send">Envoyer dans la BOM</button>
-        <button class="btn btn-ghost" id="btn-discard">Ignorer cette capture</button>
+        <button class="btn btn-primary" id="btn-send">Ouvrir dans AutoBOM →</button>
+        <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.35);text-align:center;line-height:1.5;">
+          AutoBOM s'ouvrira dans un nouvel onglet pour choisir la BOM de destination.
+        </div>
       </div>
-      <div class="status hidden" id="send-status"></div>
     </div>
 
-    <!-- ── View: not connected ── -->
-    <div id="view-login" class="hidden">
+    <!-- ── View: nothing detected ── -->
+    <div id="view-empty" class="hidden">
       <div class="hero">
-        <!-- Agent cube SVG -->
-        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="64" height="64" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="6" y="6" width="60" height="60" rx="14" fill="rgba(99,102,241,0.07)"/>
           <rect x="10" y="10" width="52" height="52" rx="11" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
           <rect x="20" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.9"/>
@@ -184,54 +168,19 @@
           <rect x="20" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.5"/>
           <rect x="31" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.7"/>
           <rect x="42" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.8"/>
-          <line x1="10" y1="36" x2="62" y2="36" stroke="#6366f1" stroke-width="1" opacity="0.25"/>
         </svg>
         <div>
-          <div class="hero-title">Connexion requise</div>
-          <div class="hero-text">Connecte-toi à AutoBOM pour accéder à tes BOMs et capturer des produits.</div>
+          <div class="hero-title">Aucun produit détecté</div>
+          <div class="hero-text">Ouvre une fiche produit (Amazon, AliExpress, Tolery, ou tout autre site fournisseur) puis clique de nouveau sur l'icône AutoBOM.</div>
         </div>
-        <button class="btn btn-primary" id="btn-login-main" style="width:100%;max-width:260px">Se connecter à AutoBOM</button>
-        <button class="btn btn-ghost" id="btn-refresh-session" style="width:100%;max-width:260px;margin-top:0">J'ai déjà connecté mon compte</button>
-      </div>
-    </div>
-
-    <!-- ── View: idle / no capture ── -->
-    <div id="view-empty">
-      <div class="hero">
-        <!-- Agent cube SVG -->
-        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="6" y="6" width="60" height="60" rx="14" fill="rgba(99,102,241,0.07)"/>
-          <rect x="10" y="10" width="52" height="52" rx="11" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
-          <rect x="20" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.9"/>
-          <rect x="31" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.5"/>
-          <rect x="42" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.7"/>
-          <rect x="20" y="31" width="9" height="9" rx="2" fill="#6366f1" opacity="0.6"/>
-          <rect x="31" y="31" width="9" height="9" rx="2" fill="#a5b4fc"/>
-          <rect x="42" y="31" width="9" height="9" rx="2" fill="#6366f1" opacity="0.4"/>
-          <rect x="20" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.5"/>
-          <rect x="31" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.7"/>
-          <rect x="42" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.8"/>
-          <line x1="10" y1="36" x2="62" y2="36" stroke="#6366f1" stroke-width="1" opacity="0.25"/>
-        </svg>
-        <div>
-          <div class="hero-title">Prêt à capturer</div>
-          <div class="hero-text">Navigue sur une page produit (Tolery, Amazon, Misumi, RS…) et clique le bouton pour capturer une référence.</div>
-        </div>
+        <button class="btn btn-ghost" id="btn-open-app" style="width:100%;max-width:260px;margin-top:0">Ouvrir AutoBOM</button>
       </div>
     </div>
 
     <!-- ── View: settings ── -->
     <div id="view-settings" class="section hidden">
-      <div class="label">Statut de connexion</div>
-      <div id="conn-status" class="conn-badge">
-        <span class="conn-dot"></span>
-        <span id="conn-text">Vérification…</span>
-      </div>
-      <button class="btn btn-primary" id="btn-login">Ouvrir AutoBOM &amp; se connecter</button>
-      <div class="gap" style="height:14px"></div>
       <div class="label">URL du serveur AutoBOM</div>
-      <div class="gap"></div>
-      <input type="text" id="input-base" placeholder="https://autobom.app" />
+      <input type="text" id="input-base" placeholder="https://auto-bom-web-soh3.vercel.app" />
       <div class="gap"></div>
       <button class="btn btn-ghost" id="btn-save-settings">Enregistrer l'URL</button>
     </div>

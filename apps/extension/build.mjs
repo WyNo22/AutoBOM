@@ -157,11 +157,6 @@ const ctx = await esbuild.context({
   ...sharedConfig,
   entryPoints: {
     "background": "src/background/index.ts",
-    "content/tolery": "src/content/tolery.ts",
-    "content/amazon": "src/content/amazon.ts",
-    "content/misumi": "src/content/misumi.ts",
-    "content/rs": "src/content/rs.ts",
-    "content/generic": "src/content/generic.ts",
     "popup": "src/popup/popup.ts",
   },
   outdir,
