@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AutoBOM",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Capturez des références produit et envoyez-les directement dans AutoBOM.",
   "permissions": ["storage", "activeTab", "scripting"],
   "background": {
