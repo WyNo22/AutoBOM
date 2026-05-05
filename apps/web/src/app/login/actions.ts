@@ -20,19 +20,31 @@ export async function registerWithPassword(prevState: AuthState, formData: FormD
   if (password.length < 8) return { error: "Le mot de passe doit contenir au moins 8 caractères." };
   if (password !== confirm) return { error: "Les mots de passe ne correspondent pas." };
 
-  const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
+  let existing;
+  try {
+    existing = await db.query.users.findFirst({ where: eq(users.email, email) });
+  } catch (e) {
+    console.error("[auth] register lookup failed", e);
+    return { error: "La base de données n’est pas disponible. Vérifie la configuration Vercel." };
+  }
   if (existing) return { error: "Un compte avec cet email existe déjà." };
 
-  const [user] = await db
-    .insert(users)
-    .values({
-      email,
-      firstName,
-      lastName,
-      name: `${firstName} ${lastName}`,
-      passwordHash: hashPassword(password),
-    })
-    .returning({ id: users.id });
+  let user;
+  try {
+    [user] = await db
+      .insert(users)
+      .values({
+        email,
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`,
+        passwordHash: hashPassword(password),
+      })
+      .returning({ id: users.id });
+  } catch (e) {
+    console.error("[auth] register insert failed", e);
+    return { error: "Impossible de créer le compte. Vérifie que les migrations DB sont appliquées." };
+  }
 
   try { await sendEmailVerification(user.id); } catch (e) { console.error("[email] sendEmailVerification failed", e); }
   redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
