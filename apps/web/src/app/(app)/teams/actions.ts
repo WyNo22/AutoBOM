@@ -5,6 +5,12 @@ import { requireTeamAdmin, requireUserId } from "@/lib/auth-helpers";
 import { and, eq, like, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+export async function deleteTeam(teamId: string) {
+  await requireTeamAdmin(teamId);
+  await db.delete(teams).where(eq(teams.id, teamId));
+  revalidatePath("/teams");
+}
+
 const TEAM_ROLES = ["admin", "member", "validator", "buyer", "viewer"] as const;
 
 type TeamRole = (typeof TEAM_ROLES)[number];
@@ -71,5 +77,19 @@ export async function updateTeamMemberRole(teamId: string, userId: string, formD
 export async function removeTeamMember(teamId: string, userId: string) {
   await requireTeamAdmin(teamId);
   await db.delete(teamMembers).where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  revalidatePath("/teams");
+}
+
+export async function addTeamMemberById(teamId: string, userId: string, role: string) {
+  await requireTeamAdmin(teamId);
+  const validRoles = ["admin", "member", "validator", "buyer", "viewer"] as const;
+  const safeRole = validRoles.includes(role as (typeof validRoles)[number]) ? (role as (typeof validRoles)[number]) : "member";
+  await db
+    .insert(teamMembers)
+    .values({ teamId, userId, role: safeRole })
+    .onConflictDoUpdate({
+      target: [teamMembers.teamId, teamMembers.userId],
+      set: { role: safeRole },
+    });
   revalidatePath("/teams");
 }

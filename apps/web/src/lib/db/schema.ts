@@ -1,4 +1,4 @@
-import { pgTable, text, integer, primaryKey, doublePrecision, index, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, primaryKey, doublePrecision, index, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import type { AdapterAccount } from "next-auth/adapters";
 
@@ -18,6 +18,8 @@ export const users = pgTable("user", {
   emailVerified: timestamp("emailVerified"),
   image: text("image"),
   aiSourcingEnabled: boolean("ai_sourcing_enabled").notNull().default(true),
+  // Per-user BOM column preferences: { order: string[], hidden: string[] }
+  columnPrefs: jsonb("column_prefs").$type<{ order: string[]; hidden: string[] }>(),
 });
 
 export const accounts = pgTable(
@@ -222,6 +224,11 @@ export const boms = pgTable(
     updatedAt: timestamp("updated_at")
       .notNull()
       .defaultNow(),
+    // Per-BOM custom column definitions
+    customColumns: jsonb("custom_columns")
+      .$type<{ key: string; label: string; type: "text" | "number" }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
   },
   (t) => ({
     projectIdx: index("bom_project_idx").on(t.projectId),
@@ -253,6 +260,11 @@ export const bomLines = pgTable(
     })
       .notNull()
       .default("to_source"),
+    // Values for BOM custom columns: { [colKey]: string | number | null }
+    customValues: jsonb("custom_values")
+      .$type<Record<string, string | number | null>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
   },
   (t) => ({
     bomIdx: index("bom_line_bom_idx").on(t.bomId),

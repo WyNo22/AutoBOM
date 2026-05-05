@@ -22,6 +22,7 @@ type LinePatch = {
   notes?: string | null;
   status?: BomLineStatus;
   position?: number;
+  customValues?: Record<string, string | number | null>;
 };
 
 function coerceNum(v: number | string | null | undefined): number | null | undefined {
@@ -69,6 +70,7 @@ export async function updateLine(
   if (patch.notes !== undefined) update.notes = coerceStr(patch.notes);
   if (patch.status !== undefined) update.status = patch.status;
   if (patch.position !== undefined) update.position = patch.position;
+  if (patch.customValues !== undefined) update.customValues = patch.customValues;
 
   if (Object.keys(update).length === 0) return;
 
@@ -193,6 +195,70 @@ export async function getLineAttachments(bomId: string, lineId: string) {
     .select()
     .from(attachments)
     .where(eq(attachments.bomLineId, lineId));
+}
+
+/**
+ * Add a custom column to a BOM. Returns the new column descriptor.
+ */
+export async function addCustomColumn(bomId: string, label: string, type: "text" | "number" = "text") {
+  await requireBomAccess(bomId);
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Label requis");
+  const [bom] = await db.select({ customColumns: boms.customColumns }).from(boms).where(eq(boms.id, bomId)).limit(1);
+  if (!bom) throw new Error("BOM introuvable");
+  const existing = bom.customColumns ?? [];
+  const key = `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const next = [...existing, { key, label: trimmed, type }];
+  await db.update(boms).set({ customColumns: next }).where(eq(boms.id, bomId));
+  await bumpBomUpdated(bomId);
+  return { key, label: trimmed, type };
+}
+
+export async function renameCustomColumn(bomId: string, key: string, label: string) {
+  await requireBomAccess(bomId);
+  const trimmed = label.trim();
+  if (!trimmed) return;
+  const [bom] = await db.select({ customColumns: boms.customColumns }).from(boms).where(eq(boms.id, bomId)).limit(1);
+  if (!bom) return;
+  const next = (bom.customColumns ?? []).map((c) => (c.key === key ? { ...c, label: trimmed } : c));
+  await db.update(boms).set({ customColumns: next }).where(eq(boms.id, bomId));
+  await bumpBomUpdated(bomId);
+}
+
+export async function deleteCustomColumn(bomId: string, key: string) {
+  await requireBomAccess(bomId);
+  const [bom] = await db.select({ customColumns: boms.customColumns }).from(boms).where(eq(boms.id, bomId)).limit(1);
+  if (!bom) return;
+  const next = (bom.customColumns ?? []).filter((c) => c.key !== key);
+  await db.update(boms).set({ customColumns: next }).where(eq(boms.id, bomId));
+  // Clean up customValues on every line
+  const allLines = await db.select({ id: bomLines.id, customValues: bomLines.customValues }).from(bomLines).where(eq(bomLines.bomId, bomId));
+  await Promise.all(
+    allLines.map((line) => {
+      const cv = { ...(line.customValues ?? {}) };
+      if (key in cv) {
+        delete cv[key];
+        return db.update(bomLines).set({ customValues: cv }).where(eq(bomLines.id, line.id));
+      }
+      return Promise.resolve();
+    })
+  );
+  await bumpBomUpdated(bomId);
+}
+
+/**
+ * Reorder BOM lines by updating their position values.
+ * orderedIds: line IDs in the new desired order.
+ */
+export async function reorderLines(bomId: string, orderedIds: string[]) {
+  await requireBomAccess(bomId);
+  if (orderedIds.length === 0) return;
+  await Promise.all(
+    orderedIds.map((id, idx) =>
+      db.update(bomLines).set({ position: idx + 1 }).where(and(eq(bomLines.id, id), eq(bomLines.bomId, bomId)))
+    )
+  );
+  await bumpBomUpdated(bomId);
 }
 
 /**

@@ -66,6 +66,7 @@ export async function requireBomAccess(bomId: string) {
       bomId: boms.id,
       bomName: boms.name,
       bomStatus: boms.status,
+      bomCustomColumns: boms.customColumns,
       projectId: boms.projectId,
       projectName: projects.name,
       role: projectMembers.role,
@@ -79,7 +80,12 @@ export async function requireBomAccess(bomId: string) {
   return {
     userId,
     role: row.role,
-    bom: { id: row.bomId, name: row.bomName, status: row.bomStatus },
+    bom: {
+      id: row.bomId,
+      name: row.bomName,
+      status: row.bomStatus,
+      customColumns: row.bomCustomColumns,
+    },
     project: { id: row.projectId, name: row.projectName },
   };
 }

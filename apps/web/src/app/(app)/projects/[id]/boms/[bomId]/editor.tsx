@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   Plus, Trash2, Search, ExternalLink, ChevronDown, Sparkles,
-  Paperclip, X, Eye, Download, FileText
+  Paperclip, X, Eye, Download, FileText, GripVertical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,36 @@ import {
   createSupplierInline,
   getLineAttachments,
   deleteAttachment,
+  reorderLines,
+  addCustomColumn,
+  renameCustomColumn,
+  deleteCustomColumn,
 } from "./actions";
+import { updateColumnPrefs } from "@/app/(app)/settings/actions";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, EyeOff, Eye as EyeIcon, Pencil } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { detectSupplierFromUrl } from "@/lib/detect-supplier";
 import type { BomLineStatus } from "@autbom/shared";
 
@@ -48,6 +77,7 @@ type Line = {
   leadTimeDays: number | null;
   notes: string | null;
   status: BomLineStatus;
+  customValues?: Record<string, string | number | null> | null;
 };
 
 type Supplier = { id: string; name: string };
@@ -80,7 +110,7 @@ type AiSourcingState = {
   };
 };
 
-type ColumnKey =
+type BuiltinColumnKey =
   | "designation"
   | "qty"
   | "material"
@@ -93,7 +123,21 @@ type ColumnKey =
   | "status"
   | "notes";
 
-const COLUMNS: { key: ColumnKey; label: string; width: string; type: "text" | "number" | "supplier" | "status" | "url" }[] = [
+type ColumnKey = string;
+
+type ColumnDef = {
+  key: ColumnKey;
+  label: string;
+  width: string;
+  type: "text" | "number" | "supplier" | "status" | "url";
+  custom?: boolean;
+};
+
+type CustomColumn = { key: string; label: string; type: "text" | "number" };
+
+type ColumnPrefs = { order: string[]; hidden: string[] } | null;
+
+const BUILTIN_COLUMNS: ColumnDef[] = [
   { key: "designation", label: "Désignation", width: "min-w-[240px]", type: "text" },
   { key: "qty", label: "Qté", width: "w-16", type: "number" },
   { key: "material", label: "Matériau", width: "w-32", type: "text" },
@@ -106,6 +150,8 @@ const COLUMNS: { key: ColumnKey; label: string; width: string; type: "text" | "n
   { key: "status", label: "Statut", width: "w-32", type: "status" },
   { key: "notes", label: "Notes", width: "min-w-[180px]", type: "text" },
 ];
+
+const BUILTIN_COLUMN_KEYS: string[] = BUILTIN_COLUMNS.map((c) => c.key);
 
 const STATUS_LABEL: Record<BomLineStatus, string> = {
   to_source: "À sourcer",
@@ -154,6 +200,8 @@ export function BomEditor({
   initialLines,
   initialSuppliers,
   initialAiSourcingEnabled,
+  initialCustomColumns,
+  initialColumnPrefs,
 }: {
   bomId: string;
   projectId: string;
@@ -162,6 +210,8 @@ export function BomEditor({
   initialLines: Line[];
   initialSuppliers: Supplier[];
   initialAiSourcingEnabled: boolean;
+  initialCustomColumns: CustomColumn[];
+  initialColumnPrefs: ColumnPrefs;
 }) {
   const [lines, setLines] = React.useState<Line[]>(initialLines);
   const [suppliers, setSuppliers] = React.useState<Supplier[]>(initialSuppliers);
@@ -173,10 +223,111 @@ export function BomEditor({
   // which lineId has attachments panel open
   const [attachOpen, setAttachOpen] = React.useState<string | null>(null);
   const [sourcingLineId, setSourcingLineId] = React.useState<string | null>(null);
-  const [aiSourcingEnabled, setAiSourcingEnabled] = React.useState(initialAiSourcingEnabled);
+  const [aiSourcingEnabled] = React.useState(initialAiSourcingEnabled);
   const [aiSourcing, setAiSourcing] = React.useState<Record<string, AiSourcingState>>({});
   // DXF preview state
   const [dxfPreview, setDxfPreview] = React.useState<{ name: string; svg: string } | null>(null);
+  // AI live search: abort controller ref + debounce
+  const aiAbortRef = React.useRef<AbortController | null>(null);
+  const aiDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // dnd-kit sensors
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  // Custom columns + column prefs
+  const [customColumns, setCustomColumns] = React.useState<CustomColumn[]>(initialCustomColumns);
+  const [columnPrefs, setColumnPrefs] = React.useState<ColumnPrefs>(initialColumnPrefs);
+
+  // Compute effective columns: union of builtin + custom, ordered by columnPrefs.order, with hidden filtered out
+  const allColumns = React.useMemo<ColumnDef[]>(() => {
+    const customDefs: ColumnDef[] = customColumns.map((c) => ({
+      key: c.key,
+      label: c.label,
+      width: c.type === "number" ? "w-28" : "min-w-[140px]",
+      type: c.type,
+      custom: true,
+    }));
+    return [...BUILTIN_COLUMNS, ...customDefs];
+  }, [customColumns]);
+
+  const visibleColumns = React.useMemo<ColumnDef[]>(() => {
+    const hidden = new Set(columnPrefs?.hidden ?? []);
+    const order = columnPrefs?.order ?? [];
+    const byKey = new Map(allColumns.map((c) => [c.key, c]));
+    const ordered: ColumnDef[] = [];
+    for (const key of order) {
+      const col = byKey.get(key);
+      if (col && !hidden.has(key)) {
+        ordered.push(col);
+        byKey.delete(key);
+      }
+    }
+    // Append any columns not yet in the saved order (newly added builtins or custom cols)
+    for (const col of byKey.values()) {
+      if (!hidden.has(col.key)) ordered.push(col);
+    }
+    return ordered;
+  }, [allColumns, columnPrefs]);
+
+  const hiddenColumns = React.useMemo<ColumnDef[]>(() => {
+    const hidden = new Set(columnPrefs?.hidden ?? []);
+    return allColumns.filter((c) => hidden.has(c.key));
+  }, [allColumns, columnPrefs]);
+
+  async function persistPrefs(next: ColumnPrefs) {
+    setColumnPrefs(next);
+    if (next) await updateColumnPrefs(next);
+  }
+
+  async function handleHideColumn(key: string) {
+    const order = columnPrefs?.order ?? visibleColumns.map((c) => c.key);
+    const hidden = Array.from(new Set([...(columnPrefs?.hidden ?? []), key]));
+    await persistPrefs({ order, hidden });
+  }
+
+  async function handleShowColumn(key: string) {
+    const hidden = (columnPrefs?.hidden ?? []).filter((k) => k !== key);
+    const order = columnPrefs?.order ?? [];
+    await persistPrefs({ order, hidden });
+  }
+
+  async function handleColumnDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = visibleColumns.findIndex((c) => c.key === active.id);
+    const newIdx = visibleColumns.findIndex((c) => c.key === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(visibleColumns, oldIdx, newIdx).map((c) => c.key);
+    // Append hidden + any unordered keys at the end to preserve them
+    const hidden = columnPrefs?.hidden ?? [];
+    await persistPrefs({ order: reordered, hidden });
+  }
+
+  async function handleAddCustomColumn() {
+    const label = window.prompt("Nom de la nouvelle colonne :")?.trim();
+    if (!label) return;
+    const typeAns = window.prompt("Type : 'text' ou 'number' (defaut text)", "text")?.trim().toLowerCase();
+    const type: "text" | "number" = typeAns === "number" ? "number" : "text";
+    const created = await addCustomColumn(bomId, label, type);
+    setCustomColumns((prev) => [...prev, created]);
+  }
+
+  async function handleRenameCustomColumn(key: string, currentLabel: string) {
+    const label = window.prompt("Nouveau nom :", currentLabel)?.trim();
+    if (!label || label === currentLabel) return;
+    setCustomColumns((prev) => prev.map((c) => (c.key === key ? { ...c, label } : c)));
+    await renameCustomColumn(bomId, key, label);
+  }
+
+  async function handleDeleteCustomColumn(key: string, label: string) {
+    if (!window.confirm(`Supprimer la colonne « ${label} » et ses valeurs ?`)) return;
+    setCustomColumns((prev) => prev.filter((c) => c.key !== key));
+    setLines((prev) => prev.map((l) => {
+      if (!l.customValues || !(key in l.customValues)) return l;
+      const cv = { ...l.customValues };
+      delete cv[key];
+      return { ...l, customValues: cv };
+    }));
+    await deleteCustomColumn(bomId, key);
+  }
 
   // ── Filter
   const visibleLines = React.useMemo(() => {
@@ -191,15 +342,39 @@ export function BomEditor({
     );
   }, [lines, filter]);
 
+  // ── AI live debounce trigger on designation
+  const triggerAiLive = React.useCallback(
+    (line: Line, value: string) => {
+      if (aiDebounceRef.current) clearTimeout(aiDebounceRef.current);
+      if (aiAbortRef.current) { aiAbortRef.current.abort(); aiAbortRef.current = null; }
+      if (!aiSourcingEnabled || value.trim().length < 3 || line.status !== "to_source") return;
+      aiDebounceRef.current = setTimeout(() => {
+        const controller = new AbortController();
+        aiAbortRef.current = controller;
+        const lineWithDesig = { ...line, designation: value };
+        setSourcingLineId(lineWithDesig.id);
+        loadAiSuggestionsWithSignal(lineWithDesig, controller.signal);
+      }, 600);
+    },
+    [aiSourcingEnabled] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   // ── Persistence wrapper (optimistic UI + server)
   const saveCell = React.useCallback(
     async (lineId: string, key: ColumnKey, value: unknown) => {
+      const isCustom = !BUILTIN_COLUMN_KEYS.includes(key);
+
       // Optimistic local update
       setLines((prev) =>
         prev.map((l) => {
           if (l.id !== lineId) return l;
+          if (isCustom) {
+            const cv = { ...(l.customValues ?? {}) };
+            if (value === "" || value == null) delete cv[key];
+            else cv[key] = value as string | number;
+            return { ...l, customValues: cv };
+          }
           if (key === "supplier") return { ...l, supplierId: (value as string | null) ?? null };
-          // Normalize numeric coercion for local state too
           if (
             key === "qty" ||
             key === "unitPriceHT" ||
@@ -217,15 +392,28 @@ export function BomEditor({
 
       setSavingCount((c) => c + 1);
       try {
-        const patch: Record<string, unknown> = {};
-        if (key === "supplier") patch.supplierId = value || null;
-        else patch[key] = value;
-        await updateLine(bomId, lineId, patch);
+        if (isCustom) {
+          const line = lines.find((l) => l.id === lineId);
+          const cv = { ...(line?.customValues ?? {}) };
+          if (value === "" || value == null) delete cv[key];
+          else cv[key] = value as string | number;
+          await updateLine(bomId, lineId, { customValues: cv });
+        } else {
+          const patch: Record<string, unknown> = {};
+          if (key === "supplier") patch.supplierId = value || null;
+          else patch[key] = value;
+          await updateLine(bomId, lineId, patch);
+        }
       } finally {
         setSavingCount((c) => c - 1);
       }
+      // AI live search on designation change
+      if (key === "designation" && typeof value === "string") {
+        const line = lines.find((l) => l.id === lineId);
+        if (line) triggerAiLive(line, value);
+      }
     },
-    [bomId]
+    [bomId, lines, triggerAiLive]
   );
 
   // ── Add row
@@ -300,7 +488,8 @@ export function BomEditor({
         return;
       }
       const lineIdx = visibleLines.findIndex((l) => l.id === lineId);
-      const colIdx = COLUMNS.findIndex((c) => c.key === colKey);
+      const cols = visibleColumns;
+      const colIdx = cols.findIndex((c) => c.key === colKey);
       if (lineIdx < 0 || colIdx < 0) return;
 
       let nextLine = lineIdx;
@@ -313,12 +502,12 @@ export function BomEditor({
         if (e.shiftKey) {
           nextCol = colIdx - 1;
           if (nextCol < 0) {
-            nextCol = COLUMNS.length - 1;
+            nextCol = cols.length - 1;
             nextLine = lineIdx - 1;
           }
         } else {
           nextCol = colIdx + 1;
-          if (nextCol >= COLUMNS.length) {
+          if (nextCol >= cols.length) {
             nextCol = 0;
             nextLine = lineIdx + 1;
           }
@@ -328,7 +517,6 @@ export function BomEditor({
 
       if (nextLine < 0) return;
       if (nextLine >= visibleLines.length) {
-        // Tab past the end → create a new line
         if (!e.shiftKey) {
           handleAddLine();
         }
@@ -336,14 +524,14 @@ export function BomEditor({
       }
 
       const targetId = visibleLines[nextLine].id;
-      const targetCol = COLUMNS[nextCol].key;
+      const targetCol = cols[nextCol].key;
       const el = document.querySelector<HTMLInputElement>(
         `[data-cell="${targetId}|${targetCol}"] input, [data-cell="${targetId}|${targetCol}"] button`
       );
       el?.focus();
       if (el instanceof HTMLInputElement) el.select();
     },
-    [visibleLines, handleAddLine, aiSourcingEnabled, aiSourcing]
+    [visibleLines, visibleColumns, handleAddLine, aiSourcingEnabled, aiSourcing]
   );
 
   function openSourcingTarget(target: SourcingTarget, query: string) {
@@ -351,6 +539,10 @@ export function BomEditor({
   }
 
   async function loadAiSuggestions(line: Line) {
+    await loadAiSuggestionsWithSignal(line, undefined);
+  }
+
+  async function loadAiSuggestionsWithSignal(line: Line, signal: AbortSignal | undefined) {
     setAiSourcing((prev) => ({
       ...prev,
       [line.id]: { loading: true, error: null, suggestions: prev[line.id]?.suggestions ?? [], parsed: prev[line.id]?.parsed },
@@ -360,6 +552,7 @@ export function BomEditor({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bomId, designation: line.designation }),
+        signal,
       });
       const data = await res.json() as {
         error?: string;
@@ -378,6 +571,7 @@ export function BomEditor({
         },
       }));
     } catch (error) {
+      if ((error as { name?: string }).name === "AbortError") return;
       setAiSourcing((prev) => ({
         ...prev,
         [line.id]: {
@@ -421,6 +615,8 @@ export function BomEditor({
         status: "to_validate",
       });
       setSourcingLineId(null);
+      if (aiDebounceRef.current) clearTimeout(aiDebounceRef.current);
+      if (aiAbortRef.current) { aiAbortRef.current.abort(); aiAbortRef.current = null; }
       const isLast = visibleLines[visibleLines.length - 1]?.id === line.id;
       if (isLast) await handleAddLine();
     } finally {
@@ -542,6 +738,18 @@ export function BomEditor({
     }
   }
 
+  // ── Drag & drop row reorder
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = lines.findIndex((l) => l.id === active.id);
+    const newIdx = lines.findIndex((l) => l.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(lines, oldIdx, newIdx);
+    setLines(reordered);
+    await reorderLines(bomId, reordered.map((l) => l.id));
+  }
+
   // ── Totals
   const totalHT = lines.reduce((sum, l) => sum + (l.unitPriceHT ?? 0) * l.qty, 0);
   const totalTTC = lines.reduce((sum, l) => sum + (l.unitPriceHT ?? 0) * l.qty * (1 + (l.tva ?? 0)), 0);
@@ -591,21 +799,6 @@ export function BomEditor({
           />
         </div>
 
-        <Button onClick={handleAddLine} size="sm">
-          <Plus className="size-4" />
-          Ligne
-        </Button>
-
-        <Button
-          onClick={() => setAiSourcingEnabled((enabled) => !enabled)}
-          size="sm"
-          variant={aiSourcingEnabled ? "default" : "outline"}
-          title="Bascule locale. Le réglage permanent est dans Settings."
-        >
-          <Sparkles className="size-4" />
-          IA {aiSourcingEnabled ? "on" : "off"}
-        </Button>
-
         <Button
           onClick={handleDeleteSelected}
           size="sm"
@@ -638,9 +831,8 @@ export function BomEditor({
       {/* ── Hint */}
       {lines.length === 0 && (
         <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          BOM vide. Clique <strong>Ligne</strong> pour ajouter, ou colle directement
-          depuis Excel (Ctrl+V) — les colonnes sont <em>Désignation, Qté, Matériau, Réf, URL,
-          PU HT, TVA, Délai, Notes</em>.
+          BOM vide — colle depuis Excel (Ctrl+V) ou clique <strong>+</strong> ci-dessous pour ajouter une ligne.
+          Colonnes : <em>Désignation, Qté, Matériau, Réf, URL, PU HT, TVA, Délai, Notes</em>.
         </div>
       )}
 
@@ -651,136 +843,63 @@ export function BomEditor({
             <thead className="bg-muted/60 text-left text-xs font-medium text-muted-foreground border-b border-border">
               <tr>
                 <th className="w-10 px-2 py-2"></th>
-                {COLUMNS.map((c) => (
-                  <th key={c.key} className={cn("px-2 py-2 font-medium", c.width)}>
-                    {c.label}
-                  </th>
-                ))}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd}>
+                  <SortableContext items={visibleColumns.map((c) => c.key)} strategy={horizontalListSortingStrategy}>
+                    {visibleColumns.map((c) => (
+                      <SortableColumnHeader
+                        key={c.key}
+                        column={c}
+                        onHide={() => handleHideColumn(c.key)}
+                        onRenameCustom={c.custom ? () => handleRenameCustomColumn(c.key, c.label) : undefined}
+                        onDeleteCustom={c.custom ? () => handleDeleteCustomColumn(c.key, c.label) : undefined}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+                <th className="w-10 px-1 py-2 text-center">
+                  <ColumnsMenu
+                    hiddenColumns={hiddenColumns}
+                    onShow={handleShowColumn}
+                    onAddCustom={handleAddCustomColumn}
+                  />
+                </th>
                 <th className="w-10 px-2 py-2" title="Fichiers"><Paperclip className="size-3" /></th>
               </tr>
             </thead>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={visibleLines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
             <tbody>
               {visibleLines.map((line, i) => (
-                <React.Fragment key={line.id}>
-                <tr
-                  className={cn(
-                    "border-b border-border hover:bg-muted/30",
-                    selected.has(line.id) && "bg-accent/40"
-                  )}
-                >
-                  <td
-                    className="text-xs text-muted-foreground text-center cursor-pointer select-none px-2 py-1"
-                    onClick={(e) => toggleRow(line.id, e)}
-                  >
-                    {i + 1}
-                  </td>
-
-                  {COLUMNS.map((c) => (
-                    <td
-                      key={c.key}
-                      data-cell={`${line.id}|${c.key}`}
-                      className={cn("p-0 align-middle", c.width)}
-                    >
-                      <CellRenderer
-                        line={line}
-                        column={c}
-                        suppliers={suppliers}
-                        onSave={(value) =>
-                          c.key === "productUrl"
-                            ? handleUrlSaved(line.id, value as string)
-                            : saveCell(line.id, c.key, value)
-                        }
-                        onCreateSupplier={(name) => handleCreateSupplier(name, line.id)}
-                        onKeyNav={(e) => handleKeyNav(e, line.id, c.key)}
-                      />
-                    </td>
-                  ))}
-                  {/* Attachments toggle cell */}
-                  <td className="w-10 p-0 align-middle">
-                    <button
-                      type="button"
-                      title="Fichiers joints"
-                      onClick={() => handleOpenAttachments(line.id)}
-                      className={cn(
-                        "w-full h-full flex items-center justify-center px-2 py-1.5 hover:bg-muted/50 text-muted-foreground",
-                        attachOpen === line.id && "text-blue-600"
-                      )}
-                    >
-                      <Paperclip className="size-3.5" />
-                      {(attachMap[line.id]?.length ?? 0) > 0 && (
-                        <span className="ml-0.5 text-[10px] font-medium">
-                          {attachMap[line.id].length}
-                        </span>
-                      )}
-                    </button>
-                  </td>
-                </tr>
-                {sourcingLineId === line.id && (
-                  <tr className="bg-blue-50/60 border-b border-blue-100">
-                    <td />
-                    <td colSpan={COLUMNS.length + 1} className="px-2 py-2">
-                      {aiSourcingEnabled ? (
-                        <AiSourcingPanel
-                          line={line}
-                          state={aiSourcing[line.id] ?? { loading: false, error: null, suggestions: [] }}
-                          onRefresh={() => loadAiSuggestions(line)}
-                          onApply={(suggestion: AiSourcingSuggestion) => applyAiSuggestion(line, suggestion)}
-                          onSkip={() => setSourcingLineId(null)}
-                        />
-                      ) : (
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <div className="text-xs font-medium text-blue-950">
-                              Sourcer « {line.designation} »
-                            </div>
-                            <div className="text-[11px] text-blue-900/70">
-                              Ouvre une recherche fournisseur, puis capture le produit trouvé avec l'extension.
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSourcingLineId(null)}
-                            className="text-xs text-blue-900/70 hover:text-blue-950"
-                          >
-                            Continuer sans sourcer
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {SOURCING_TARGETS.map((target) => (
-                            <button
-                              key={target.label}
-                              type="button"
-                              onClick={() => openSourcingTarget(target, line.designation)}
-                              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs text-blue-950 hover:bg-blue-100"
-                              title={target.hint}
-                            >
-                              <ExternalLink className="size-3" />
-                              {target.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      )}
-                    </td>
-                  </tr>
-                )}
-                {/* Attachments sub-row */}
-                {attachOpen === line.id && (
-                  <tr className="bg-muted/20 border-b border-border">
-                    <td colSpan={COLUMNS.length + 2} className="px-4 py-3">
-                      <AttachmentsPanel
-                        attachments={attachMap[line.id] ?? []}
-                        onUpload={(file) => handleUpload(line.id, file)}
-                        onDelete={(attId) => handleDeleteAttachment(line.id, attId)}
-                        onDxfPreview={handleDxfPreview}
-                      />
-                    </td>
-                  </tr>
-                )}
-                </React.Fragment>
+                <SortableRow
+                  key={line.id}
+                  line={line}
+                  index={i}
+                  selected={selected}
+                  toggleRow={toggleRow}
+                  attachOpen={attachOpen}
+                  attachMap={attachMap}
+                  sourcingLineId={sourcingLineId}
+                  aiSourcingEnabled={aiSourcingEnabled}
+                  aiSourcing={aiSourcing}
+                  suppliers={suppliers}
+                  columns={visibleColumns}
+                  saveCell={saveCell}
+                  handleUrlSaved={handleUrlSaved}
+                  handleCreateSupplier={handleCreateSupplier}
+                  handleKeyNav={handleKeyNav}
+                  handleOpenAttachments={handleOpenAttachments}
+                  loadAiSuggestions={loadAiSuggestions}
+                  applyAiSuggestion={applyAiSuggestion}
+                  setSourcingLineId={setSourcingLineId}
+                  openSourcingTarget={openSourcingTarget}
+                  handleUpload={handleUpload}
+                  handleDeleteAttachment={handleDeleteAttachment}
+                  handleDxfPreview={handleDxfPreview}
+                />
               ))}
             </tbody>
+            </SortableContext>
+            </DndContext>
             {/* Footer with totals */}
             <tfoot className="bg-muted/40 text-xs">
               <tr>
@@ -801,7 +920,201 @@ export function BomEditor({
           </table>
         </div>
       )}
+
+      {/* ── Add row button */}
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={handleAddLine}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-4 py-1.5 rounded-md border border-dashed border-border hover:border-foreground/40 transition-colors"
+        >
+          <Plus className="size-3.5" />
+          Ajouter une ligne
+        </button>
+      </div>
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SortableRow — wraps a BOM row with dnd-kit useSortable
+// ────────────────────────────────────────────────────────────────────────────
+
+type SortableRowProps = {
+  line: Line;
+  index: number;
+  selected: Set<string>;
+  toggleRow: (id: string, e: React.MouseEvent) => void;
+  attachOpen: string | null;
+  attachMap: Record<string, Attachment[]>;
+  sourcingLineId: string | null;
+  aiSourcingEnabled: boolean;
+  aiSourcing: Record<string, AiSourcingState>;
+  suppliers: Supplier[];
+  columns: ColumnDef[];
+  saveCell: (lineId: string, key: ColumnKey, value: unknown) => Promise<void>;
+  handleUrlSaved: (lineId: string, url: string) => Promise<void>;
+  handleCreateSupplier: (name: string, lineId: string) => Promise<string>;
+  handleKeyNav: (e: React.KeyboardEvent<HTMLInputElement>, lineId: string, colKey: ColumnKey) => void;
+  handleOpenAttachments: (lineId: string) => Promise<void>;
+  loadAiSuggestions: (line: Line) => Promise<void>;
+  applyAiSuggestion: (line: Line, suggestion: AiSourcingSuggestion) => Promise<void>;
+  setSourcingLineId: (id: string | null) => void;
+  openSourcingTarget: (target: SourcingTarget, query: string) => void;
+  handleUpload: (lineId: string, file: File) => Promise<void>;
+  handleDeleteAttachment: (lineId: string, attId: string) => Promise<void>;
+  handleDxfPreview: (att: Attachment) => Promise<void>;
+};
+
+function SortableRow({
+  line, index, selected, toggleRow, attachOpen, attachMap, sourcingLineId,
+  aiSourcingEnabled, aiSourcing, suppliers, columns, saveCell, handleUrlSaved,
+  handleCreateSupplier, handleKeyNav, handleOpenAttachments, loadAiSuggestions,
+  applyAiSuggestion, setSourcingLineId, openSourcingTarget, handleUpload,
+  handleDeleteAttachment, handleDxfPreview,
+}: SortableRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <React.Fragment>
+      <tr
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "border-b border-border hover:bg-muted/30",
+          selected.has(line.id) && "bg-accent/40"
+        )}
+      >
+        <td className="text-xs text-muted-foreground text-center select-none px-1 py-1">
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground p-0.5 touch-none"
+              tabIndex={-1}
+            >
+              <GripVertical className="size-3" />
+            </button>
+            <span
+              className="cursor-pointer"
+              onClick={(e) => toggleRow(line.id, e)}
+            >
+              {index + 1}
+            </span>
+          </div>
+        </td>
+
+        {columns.map((c) => (
+          <td
+            key={c.key}
+            data-cell={`${line.id}|${c.key}`}
+            className={cn("p-0 align-middle", c.width)}
+          >
+            <CellRenderer
+              line={line}
+              column={c}
+              suppliers={suppliers}
+              onSave={(value) =>
+                c.key === "productUrl"
+                  ? handleUrlSaved(line.id, value as string)
+                  : saveCell(line.id, c.key, value)
+              }
+              onCreateSupplier={(name) => handleCreateSupplier(name, line.id)}
+              onKeyNav={(e) => handleKeyNav(e, line.id, c.key)}
+            />
+          </td>
+        ))}
+
+        <td className="w-10 p-0 align-middle">
+          <button
+            type="button"
+            title="Fichiers joints"
+            onClick={() => handleOpenAttachments(line.id)}
+            className={cn(
+              "w-full h-full flex items-center justify-center px-2 py-1.5 hover:bg-muted/50 text-muted-foreground",
+              attachOpen === line.id && "text-blue-600"
+            )}
+          >
+            <Paperclip className="size-3.5" />
+            {(attachMap[line.id]?.length ?? 0) > 0 && (
+              <span className="ml-0.5 text-[10px] font-medium">
+                {attachMap[line.id].length}
+              </span>
+            )}
+          </button>
+        </td>
+      </tr>
+
+      {sourcingLineId === line.id && (
+        <tr className="bg-blue-50/60 border-b border-blue-100">
+          <td />
+          <td colSpan={columns.length + 1} className="px-2 py-2">
+            {aiSourcingEnabled ? (
+              <AiSourcingPanel
+                line={line}
+                state={aiSourcing[line.id] ?? { loading: false, error: null, suggestions: [] }}
+                onRefresh={() => loadAiSuggestions(line)}
+                onApply={(suggestion: AiSourcingSuggestion) => applyAiSuggestion(line, suggestion)}
+                onSkip={() => setSourcingLineId(null)}
+              />
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-medium text-blue-950">
+                      Sourcer « {line.designation} »
+                    </div>
+                    <div className="text-[11px] text-blue-900/70">
+                      Ouvre une recherche fournisseur, puis capture le produit trouvé avec l&apos;extension.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSourcingLineId(null)}
+                    className="text-xs text-blue-900/70 hover:text-blue-950"
+                  >
+                    Continuer sans sourcer
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {SOURCING_TARGETS.map((target) => (
+                    <button
+                      key={target.label}
+                      type="button"
+                      onClick={() => openSourcingTarget(target, line.designation)}
+                      className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs text-blue-950 hover:bg-blue-100"
+                      title={target.hint}
+                    >
+                      <ExternalLink className="size-3" />
+                      {target.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+
+      {attachOpen === line.id && (
+        <tr className="bg-muted/20 border-b border-border">
+          <td colSpan={columns.length + 2} className="px-4 py-3">
+            <AttachmentsPanel
+              attachments={attachMap[line.id] ?? []}
+              onUpload={(file) => handleUpload(line.id, file)}
+              onDelete={(attId) => handleDeleteAttachment(line.id, attId)}
+              onDxfPreview={handleDxfPreview}
+            />
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
   );
 }
 
@@ -934,7 +1247,7 @@ function CellRenderer({
   onKeyNav,
 }: {
   line: Line;
-  column: { key: ColumnKey; type: "text" | "number" | "supplier" | "status" | "url" };
+  column: ColumnDef;
   suppliers: Supplier[];
   onSave: (value: unknown) => void;
   onCreateSupplier: (name: string) => Promise<string>;
@@ -978,7 +1291,9 @@ function CellRenderer({
     );
   }
 
-  const raw = (line as unknown as Record<string, unknown>)[column.key];
+  const raw = column.custom
+    ? line.customValues?.[column.key]
+    : (line as unknown as Record<string, unknown>)[column.key];
   return (
     <InlineInput
       value={raw == null ? "" : String(raw)}
@@ -987,6 +1302,124 @@ function CellRenderer({
       onSave={onSave}
       onKeyNav={onKeyNav}
     />
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SortableColumnHeader — column header with drag handle + dropdown menu
+// ────────────────────────────────────────────────────────────────────────────
+
+function SortableColumnHeader({
+  column,
+  onHide,
+  onRenameCustom,
+  onDeleteCustom,
+}: {
+  column: ColumnDef;
+  onHide: () => void;
+  onRenameCustom?: () => void;
+  onDeleteCustom?: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: column.key });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <th ref={setNodeRef} style={style} className={cn("px-2 py-2 font-medium relative group", column.width)}>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+          tabIndex={-1}
+          title="Glisser pour réorganiser"
+        >
+          <GripVertical className="size-3" />
+        </button>
+        <span className="flex-1 truncate">{column.label}</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="text-muted-foreground/40 hover:text-muted-foreground p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              tabIndex={-1}
+            >
+              <MoreHorizontal className="size-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {onRenameCustom && (
+              <DropdownMenuItem onClick={onRenameCustom}>
+                <Pencil className="size-3.5" />
+                Renommer
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onHide}>
+              <EyeOff className="size-3.5" />
+              Masquer
+            </DropdownMenuItem>
+            {onDeleteCustom && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem destructive onClick={onDeleteCustom}>
+                  <Trash2 className="size-3.5" />
+                  Supprimer la colonne
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </th>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ColumnsMenu — "+" trigger to add custom column or unhide hidden ones
+// ────────────────────────────────────────────────────────────────────────────
+
+function ColumnsMenu({
+  hiddenColumns,
+  onShow,
+  onAddCustom,
+}: {
+  hiddenColumns: ColumnDef[];
+  onShow: (key: string) => void;
+  onAddCustom: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title="Colonnes"
+          className="text-muted-foreground/60 hover:text-foreground p-1 rounded hover:bg-accent"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onAddCustom}>
+          <Plus className="size-3.5" />
+          Nouvelle colonne…
+        </DropdownMenuItem>
+        {hiddenColumns.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            {hiddenColumns.map((c) => (
+              <DropdownMenuItem key={c.key} onClick={() => onShow(c.key)}>
+                <EyeIcon className="size-3.5" />
+                Afficher « {c.label} »
+              </DropdownMenuItem>
+            ))}
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

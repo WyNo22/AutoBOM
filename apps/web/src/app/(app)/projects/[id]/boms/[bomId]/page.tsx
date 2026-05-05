@@ -42,6 +42,8 @@ export default async function BomDetailPage({
         initialLines={lines}
         initialSuppliers={suppliersList}
         initialAiSourcingEnabled={user?.aiSourcingEnabled ?? true}
+        initialCustomColumns={bom.customColumns ?? []}
+        initialColumnPrefs={user?.columnPrefs ?? null}
       />
     </div>
   );
