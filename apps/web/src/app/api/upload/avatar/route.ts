@@ -5,18 +5,26 @@ import { storage } from "@/lib/storage";
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  if (!file) return NextResponse.json({ error: "file required" }, { status: 400 });
-  if (file.size > MAX_SIZE) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 413 });
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) return NextResponse.json({ error: "file required" }, { status: 400 });
+    if (!file.type.startsWith("image/")) return NextResponse.json({ error: "image file required" }, { status: 400 });
+    if (file.size > MAX_SIZE) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 413 });
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const { key } = await storage().put(`avatar-${session.user.id}-${file.name}`, buffer);
-  const url = storage().getUrl(key);
+    const store = storage();
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const { key } = await store.put(`avatar-${session.user.id}-${file.name}`, buffer);
+    const url = store.getUrl(key);
 
-  return NextResponse.json({ url });
+    return NextResponse.json({ url });
+  } catch (error) {
+    console.error("[upload/avatar] failed", error);
+    const message = error instanceof Error ? error.message : "Upload failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

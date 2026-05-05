@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2, Check, X, Users } from "lucide-react";
+import Link from "next/link";
+import { MoreHorizontal, Pencil, Trash2, Check, X, Users, Link as LinkIcon, Copy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { MemberSearch } from "@/components/member-search";
-import { renameTeam, deleteTeam, addTeamMemberById, updateTeamMemberRole, removeTeamMember } from "./actions";
+import { renameTeam, deleteTeam, addTeamMemberById, updateTeamMemberRole, removeTeamMember, createTeamInvite } from "./actions";
 import { cn } from "@/lib/utils";
 
 const TEAM_ROLE_OPTIONS = [
@@ -32,6 +33,8 @@ type TeamData = {
   teamName: string;
   teamOwnerId: string;
   currentRole: string;
+  projectId: string | null;
+  projectName: string | null;
 };
 
 const AVATAR_COLORS = [
@@ -57,6 +60,7 @@ export function TeamCard({ team, members }: { team: TeamData; members: Member[] 
   const [pending, setPending] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState("member");
   const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null);
+  const [inviteLink, setInviteLink] = React.useState<string | null>(null);
   const canAdmin = ["owner", "admin"].includes(team.currentRole);
 
   async function handleRename() {
@@ -87,6 +91,18 @@ export function TeamCard({ team, members }: { team: TeamData; members: Member[] 
     await removeTeamMember(team.teamId, memberId);
   }
 
+  async function handleCreateInvite() {
+    setPending(true);
+    try {
+      const path = await createTeamInvite(team.teamId, selectedRole);
+      const url = `${window.location.origin}${path}`;
+      setInviteLink(url);
+      await navigator.clipboard?.writeText(url);
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -97,6 +113,15 @@ export function TeamCard({ team, members }: { team: TeamData; members: Member[] 
               {team.teamName}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">Ton rôle : {team.currentRole}</p>
+            {team.projectId && (
+              <Link
+                href={`/projects/${team.projectId}`}
+                className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                <LinkIcon className="size-3" />
+                Projet lié : {team.projectName}
+              </Link>
+            )}
           </div>
           {canAdmin && (
             <DropdownMenu>
@@ -159,6 +184,22 @@ export function TeamCard({ team, members }: { team: TeamData; members: Member[] 
             >
               Ajouter
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={handleCreateInvite}
+            >
+              <Copy className="size-3.5" />
+              Lien
+            </Button>
+          </div>
+        )}
+
+        {inviteLink && (
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Lien copié : <span className="text-foreground break-all">{inviteLink}</span>
           </div>
         )}
 

@@ -26,22 +26,26 @@ function colorFor(name: string) {
 export function AvatarUpload({ currentImage, name }: Props) {
   const [image, setImage] = React.useState(currentImage);
   const [uploading, setUploading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setError(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("bomLineId", "__avatar__");
       const res = await fetch("/api/upload/avatar", { method: "POST", body: fd });
-      if (res.ok) {
-        const { url } = await res.json() as { url: string };
-        setImage(url);
-        await updateAvatar(url);
+      const payload = await res.json().catch(() => null) as { url?: string; error?: string } | null;
+      if (!res.ok || !payload?.url) {
+        setError(payload?.error ?? "Upload impossible pour le moment.");
+        return;
       }
+      setImage(payload.url);
+      await updateAvatar(payload.url);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -86,6 +90,7 @@ export function AvatarUpload({ currentImage, name }: Props) {
       <div>
         <p className="text-sm font-medium">{displayName}</p>
         <p className="text-xs text-muted-foreground">Clique sur la photo pour la changer</p>
+        {error && <p className="text-xs text-destructive mt-1">{error}</p>}
       </div>
     </div>
   );

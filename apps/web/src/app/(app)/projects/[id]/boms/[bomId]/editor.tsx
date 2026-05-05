@@ -3,7 +3,8 @@
 import * as React from "react";
 import {
   Plus, Trash2, Search, ExternalLink, ChevronDown, Sparkles,
-  Paperclip, X, Eye, Download, FileText, GripVertical
+  Paperclip, X, Eye, Download, FileText, GripVertical, RotateCcw,
+  ArrowUpDown, ArrowUp, ArrowDown, Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,7 +145,7 @@ const BUILTIN_COLUMNS: ColumnDef[] = [
   { key: "supplier", label: "Fournisseur", width: "w-44", type: "supplier" },
   { key: "supplierRef", label: "Réf.", width: "w-32", type: "text" },
   { key: "productUrl", label: "URL produit", width: "w-40", type: "url" },
-  { key: "unitPriceHT", label: "PU HT (€)", width: "w-28", type: "number" },
+  { key: "unitPriceHT", label: "Prix unitaire HT (€)", width: "w-36", type: "number" },
   { key: "tva", label: "TVA %", width: "w-20", type: "number" },
   { key: "leadTimeDays", label: "Délai (j)", width: "w-20", type: "number" },
   { key: "status", label: "Statut", width: "w-32", type: "status" },
@@ -227,9 +228,11 @@ export function BomEditor({
   const [aiSourcing, setAiSourcing] = React.useState<Record<string, AiSourcingState>>({});
   // DXF preview state
   const [dxfPreview, setDxfPreview] = React.useState<{ name: string; svg: string } | null>(null);
+  const [sort, setSort] = React.useState<{ key: string; dir: "asc" | "desc" } | null>(null);
   // AI live search: abort controller ref + debounce
   const aiAbortRef = React.useRef<AbortController | null>(null);
   const aiDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const importInputRef = React.useRef<HTMLInputElement>(null);
   // dnd-kit sensors
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   // Custom columns + column prefs
@@ -289,6 +292,19 @@ export function BomEditor({
     await persistPrefs({ order, hidden });
   }
 
+  async function handleResetLayout() {
+    setSort(null);
+    await persistPrefs(null);
+  }
+
+  function handleSortColumn(key: string) {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  }
+
   async function handleColumnDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -329,18 +345,39 @@ export function BomEditor({
     await deleteCustomColumn(bomId, key);
   }
 
-  // ── Filter
+  function sortValue(line: Line, key: string): string | number {
+    if (!BUILTIN_COLUMN_KEYS.includes(key)) {
+      const v = line.customValues?.[key];
+      return typeof v === "number" ? v : String(v ?? "").toLowerCase();
+    }
+    const v = (line as unknown as Record<string, unknown>)[key];
+    if (typeof v === "number") return v;
+    return String(v ?? "").toLowerCase();
+  }
+
+  // ── Filter + local sort
   const visibleLines = React.useMemo(() => {
-    if (!filter.trim()) return lines;
+    let result = lines;
     const q = filter.toLowerCase();
-    return lines.filter(
-      (l) =>
-        l.designation.toLowerCase().includes(q) ||
-        (l.material ?? "").toLowerCase().includes(q) ||
-        (l.supplierRef ?? "").toLowerCase().includes(q) ||
-        (l.notes ?? "").toLowerCase().includes(q)
-    );
-  }, [lines, filter]);
+    if (filter.trim()) {
+      result = lines.filter(
+        (l) =>
+          l.designation.toLowerCase().includes(q) ||
+          (l.material ?? "").toLowerCase().includes(q) ||
+          (l.supplierRef ?? "").toLowerCase().includes(q) ||
+          (l.notes ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (!sort) return result;
+    return [...result].sort((a, b) => {
+      const av = sortValue(a, sort.key);
+      const bv = sortValue(b, sort.key);
+      if (typeof av === "number" && typeof bv === "number") return sort.dir === "asc" ? av - bv : bv - av;
+      return sort.dir === "asc"
+        ? String(av).localeCompare(String(bv), "fr", { numeric: true })
+        : String(bv).localeCompare(String(av), "fr", { numeric: true });
+    });
+  }, [lines, filter, sort]);
 
   // ── AI live debounce trigger on designation
   const triggerAiLive = React.useCallback(
@@ -443,6 +480,22 @@ export function BomEditor({
     }
   }, [bomId, selected]);
 
+  const handleDeleteLine = React.useCallback(async (line: Line) => {
+    if (!window.confirm(`Supprimer la ligne « ${line.designation || line.position} » ?`)) return;
+    setLines((prev) => prev.filter((l) => l.id !== line.id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(line.id);
+      return next;
+    });
+    setSavingCount((c) => c + 1);
+    try {
+      await deleteLines(bomId, [line.id]);
+    } finally {
+      setSavingCount((c) => c - 1);
+    }
+  }, [bomId]);
+
   // ── Paste from Excel (capture on focused cell)
   const handlePaste = React.useCallback(
     async (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -465,6 +518,27 @@ export function BomEditor({
     },
     [bomId]
   );
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const separator = text.includes("\t") ? "\t" : ";";
+      const rows = text
+        .replace(/\r/g, "")
+        .split("\n")
+        .map((row) => row.split(separator).map((cell) => cell.trim()))
+        .filter((row) => row.some(Boolean));
+      if (rows.length === 0) return;
+      setSavingCount((c) => c + 1);
+      const inserted = await pasteLines(bomId, rows);
+      setLines((prev) => [...prev, ...(inserted as Line[])]);
+    } finally {
+      setSavingCount((c) => c - 1);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
 
   // ── Keyboard navigation between cells: Tab, Shift+Tab, Enter
   const handleKeyNav = React.useCallback(
@@ -799,15 +873,32 @@ export function BomEditor({
           />
         </div>
 
-        <Button
-          onClick={handleDeleteSelected}
-          size="sm"
-          variant="outline"
-          disabled={selected.size === 0}
+        {selected.size > 0 && (
+          <Button
+            onClick={handleDeleteSelected}
+            size="sm"
+            variant="outline"
+          >
+            <Trash2 className="size-4" />
+            Suppr ({selected.size})
+          </Button>
+        )}
+
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".csv,.tsv,.txt"
+          className="hidden"
+          onChange={handleImportFile}
+        />
+        <button
+          type="button"
+          onClick={() => importInputRef.current?.click()}
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded border border-border bg-background hover:bg-muted transition-colors"
         >
-          <Trash2 className="size-4" />
-          Suppr ({selected.size})
-        </Button>
+          <Upload className="size-3.5" />
+          Import Excel
+        </button>
 
         <a
           href={`/api/boms/${bomId}/export`}
@@ -849,6 +940,8 @@ export function BomEditor({
                       <SortableColumnHeader
                         key={c.key}
                         column={c}
+                        sortDir={sort?.key === c.key ? sort.dir : null}
+                        onSort={() => handleSortColumn(c.key)}
                         onHide={() => handleHideColumn(c.key)}
                         onRenameCustom={c.custom ? () => handleRenameCustomColumn(c.key, c.label) : undefined}
                         onDeleteCustom={c.custom ? () => handleDeleteCustomColumn(c.key, c.label) : undefined}
@@ -861,6 +954,7 @@ export function BomEditor({
                     hiddenColumns={hiddenColumns}
                     onShow={handleShowColumn}
                     onAddCustom={handleAddCustomColumn}
+                    onResetLayout={handleResetLayout}
                   />
                 </th>
                 <th className="w-10 px-2 py-2" title="Fichiers"><Paperclip className="size-3" /></th>
@@ -895,6 +989,7 @@ export function BomEditor({
                   handleUpload={handleUpload}
                   handleDeleteAttachment={handleDeleteAttachment}
                   handleDxfPreview={handleDxfPreview}
+                  handleDeleteLine={handleDeleteLine}
                 />
               ))}
             </tbody>
@@ -964,6 +1059,7 @@ type SortableRowProps = {
   handleUpload: (lineId: string, file: File) => Promise<void>;
   handleDeleteAttachment: (lineId: string, attId: string) => Promise<void>;
   handleDxfPreview: (att: Attachment) => Promise<void>;
+  handleDeleteLine: (line: Line) => Promise<void>;
 };
 
 function SortableRow({
@@ -971,7 +1067,7 @@ function SortableRow({
   aiSourcingEnabled, aiSourcing, suppliers, columns, saveCell, handleUrlSaved,
   handleCreateSupplier, handleKeyNav, handleOpenAttachments, loadAiSuggestions,
   applyAiSuggestion, setSourcingLineId, openSourcingTarget, handleUpload,
-  handleDeleteAttachment, handleDxfPreview,
+  handleDeleteAttachment, handleDxfPreview, handleDeleteLine,
 }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id });
   const style = {
@@ -986,12 +1082,21 @@ function SortableRow({
         ref={setNodeRef}
         style={style}
         className={cn(
-          "border-b border-border hover:bg-muted/30",
+          "group border-b border-border hover:bg-muted/30",
           selected.has(line.id) && "bg-accent/40"
         )}
       >
         <td className="text-xs text-muted-foreground text-center select-none px-1 py-1">
           <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => handleDeleteLine(line)}
+              className="text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+              tabIndex={-1}
+              title="Supprimer la ligne"
+            >
+              <X className="size-3" />
+            </button>
             <button
               type="button"
               {...attributes}
@@ -1311,11 +1416,15 @@ function CellRenderer({
 
 function SortableColumnHeader({
   column,
+  sortDir,
+  onSort,
   onHide,
   onRenameCustom,
   onDeleteCustom,
 }: {
   column: ColumnDef;
+  sortDir: "asc" | "desc" | null;
+  onSort: () => void;
   onHide: () => void;
   onRenameCustom?: () => void;
   onDeleteCustom?: () => void;
@@ -1340,7 +1449,21 @@ function SortableColumnHeader({
         >
           <GripVertical className="size-3" />
         </button>
-        <span className="flex-1 truncate">{column.label}</span>
+        <button
+          type="button"
+          onClick={onSort}
+          className="flex flex-1 items-center gap-1 truncate text-left hover:text-foreground"
+          title="Cliquer pour trier"
+        >
+          <span className="truncate">{column.label}</span>
+          {sortDir === "asc" ? (
+            <ArrowUp className="size-3 text-foreground" />
+          ) : sortDir === "desc" ? (
+            <ArrowDown className="size-3 text-foreground" />
+          ) : (
+            <ArrowUpDown className="size-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+          )}
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -1386,10 +1509,12 @@ function ColumnsMenu({
   hiddenColumns,
   onShow,
   onAddCustom,
+  onResetLayout,
 }: {
   hiddenColumns: ColumnDef[];
   onShow: (key: string) => void;
   onAddCustom: () => void;
+  onResetLayout: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -1406,6 +1531,10 @@ function ColumnsMenu({
         <DropdownMenuItem onClick={onAddCustom}>
           <Plus className="size-3.5" />
           Nouvelle colonne…
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onResetLayout}>
+          <RotateCcw className="size-3.5" />
+          Réinitialiser la table
         </DropdownMenuItem>
         {hiddenColumns.length > 0 && (
           <>

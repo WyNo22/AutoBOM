@@ -9,7 +9,8 @@ import { requireProjectMember } from "@/lib/auth-helpers";
 import { createBom } from "./actions";
 import { BomCard } from "./bom-card";
 import { ProjectActions } from "./project-actions";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Plus } from "lucide-react";
 
 export default async function ProjectDetailPage({
   params,
@@ -41,6 +42,14 @@ export default async function ProjectDetailPage({
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+        <Link href="/projects" className="hover:text-foreground hover:underline">
+          Projets
+        </Link>
+        <ChevronRight className="size-3.5" />
+        <span className="text-foreground font-medium">{project.name}</span>
+      </div>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>

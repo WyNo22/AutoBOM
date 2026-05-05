@@ -1,4 +1,4 @@
-import { db, teamMembers, teams, users } from "@/lib/db";
+import { db, projects, teamMembers, teams, users } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-helpers";
 import { eq, desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,9 +17,12 @@ export default async function TeamsPage() {
       teamOwnerId: teams.ownerId,
       teamCreatedAt: teams.createdAt,
       currentRole: teamMembers.role,
+      projectId: projects.id,
+      projectName: projects.name,
     })
     .from(teams)
     .innerJoin(teamMembers, eq(teamMembers.teamId, teams.id))
+    .leftJoin(projects, eq(projects.teamId, teams.id))
     .where(eq(teamMembers.userId, userId))
     .orderBy(desc(teams.createdAt));
 
@@ -53,6 +56,7 @@ export default async function TeamsPage() {
         <CardContent>
           <form action={createTeam} className="flex flex-col sm:flex-row gap-2">
             <Input name="name" placeholder="Nom de l&apos;équipe" required className="sm:max-w-xs" />
+            <Input name="projectName" placeholder="Projet lié (optionnel)" className="sm:max-w-xs" />
             <Button type="submit">
               <Plus className="size-4" />
               Créer

@@ -56,7 +56,7 @@ export async function toggleAiSourcing(enabled: boolean) {
   revalidatePath("/settings");
 }
 
-export async function updateColumnPrefs(prefs: { order: string[]; hidden: string[] }) {
+export async function updateColumnPrefs(prefs: { order: string[]; hidden: string[] } | null) {
   const userId = await requireUserId();
   await db.update(users).set({ columnPrefs: prefs }).where(eq(users.id, userId));
 }
