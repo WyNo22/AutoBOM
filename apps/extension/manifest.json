@@ -34,10 +34,7 @@
     "https://*.igus.fr/*",
     "https://*.festo.com/*",
     "https://*.smc.eu/*",
-    "http://localhost:3000/*",
-    "http://localhost:3001/*",
-    "https://auto-bom-web-soh3.vercel.app/*",
-    "https://*.vercel.app/*"
+    "https://auto-bom-web-soh3.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js",
