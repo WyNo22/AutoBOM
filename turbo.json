@@ -13,7 +13,11 @@
         "RESEND_API_KEY",
         "MAIL_FROM",
         "MAIL_DRIVER",
-        "ADMIN_EMAIL"
+        "ADMIN_EMAIL",
+        "DEV_AUTH_BYPASS",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL",
+        "TAVILY_API_KEY"
       ]
     },
     "dev": {
