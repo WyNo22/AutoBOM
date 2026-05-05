@@ -7,6 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createProject } from "./actions";
 import { ProjectCard } from "./project-card";
 import { Plus } from "lucide-react";
+import { TourTrigger } from "@/components/tour/tour-trigger";
+
+const PROJECTS_TOUR = [
+  { id: "projects-title", title: "Tes projets", content: "Un projet regroupe toutes tes BOMs (nomenclatures). Crée un projet par produit ou chantier.", placement: "bottom" as const },
+  { id: "projects-create", title: "Créer un projet", content: "Donne un nom et une description optionnelle. Un projet lié à une équipe sera automatiquement partagé avec ses membres.", placement: "bottom" as const },
+  { id: "projects-grid", title: "Tes projets", content: "Clique sur une carte pour accéder au projet, voir ses BOMs et les gérer.", placement: "top" as const },
+];
 
 export default async function ProjectsPage() {
   const session = await auth();
@@ -27,8 +34,10 @@ export default async function ProjectsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <TourTrigger steps={PROJECTS_TOUR} storageKey="tour_projects" />
+
       <div className="flex items-end justify-between">
-        <div>
+        <div data-tour="projects-title">
           <h1 className="text-2xl font-semibold tracking-tight">Projets</h1>
           <p className="text-sm text-muted-foreground">
             Crée un projet pour démarrer une BOM.
@@ -36,7 +45,7 @@ export default async function ProjectsPage() {
         </div>
       </div>
 
-      <Card>
+      <Card data-tour="projects-create">
         <CardHeader>
           <CardTitle className="text-base">Nouveau projet</CardTitle>
         </CardHeader>
@@ -55,7 +64,7 @@ export default async function ProjectsPage() {
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aucun projet pour l&apos;instant.</p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div data-tour="projects-grid" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((p) => (
             <ProjectCard key={p.id} project={p} />
           ))}

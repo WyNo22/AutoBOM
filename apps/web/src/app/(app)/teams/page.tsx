@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { createTeam } from "./actions";
 import { TeamCard } from "./team-card";
 import { Plus } from "lucide-react";
+import { TourTrigger } from "@/components/tour/tour-trigger";
+
+const TEAMS_TOUR = [
+  { id: "teams-title", title: "Équipes", content: "Une équipe regroupe plusieurs collaborateurs sur un même projet. Chaque membre a un rôle : Admin, Valideur, Acheteur ou Concepteur.", placement: "bottom" as const },
+  { id: "teams-create", title: "Créer une équipe", content: "Donne un nom à ton équipe. Un projet lié est créé automatiquement pour centraliser les BOMs de l'équipe.", placement: "bottom" as const },
+  { id: "teams-list", title: "Tes équipes", content: "Gérer les membres, leurs rôles, et générer des liens d'invitation depuis chaque carte équipe.", placement: "top" as const },
+];
 
 export default async function TeamsPage() {
   const userId = await requireUserId();
@@ -44,12 +51,14 @@ export default async function TeamsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div>
+      <TourTrigger steps={TEAMS_TOUR} storageKey="tour_teams" />
+
+      <div data-tour="teams-title">
         <h1 className="text-2xl font-semibold tracking-tight">Équipes</h1>
         <p className="text-sm text-muted-foreground">Crée des équipes, ajoute des membres et attribue leurs rôles.</p>
       </div>
 
-      <Card>
+      <Card data-tour="teams-create">
         <CardHeader>
           <CardTitle className="text-base">Nouvelle équipe</CardTitle>
         </CardHeader>
@@ -68,7 +77,7 @@ export default async function TeamsPage() {
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aucune équipe pour l&apos;instant.</p>
       ) : (
-        <div className="grid gap-4">
+        <div data-tour="teams-list" className="grid gap-4">
           {rows.map((team) => {
             const teamMembersList = members.filter((m) => m.teamId === team.teamId);
             return (

@@ -861,7 +861,7 @@ export function BomEditor({
       )}
 
       {/* ── Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div data-tour="bom-toolbar" className="flex items-center gap-2 flex-wrap">
         <h1 className="text-xl font-semibold tracking-tight mr-auto flex items-center gap-3">
           {bomName}{" "}
           <span className="text-xs font-normal text-muted-foreground capitalize">
@@ -938,7 +938,7 @@ export function BomEditor({
 
       {/* ── Table */}
       {lines.length > 0 && (
-        <div className="border border-border rounded-md overflow-x-auto bg-card">
+        <div data-tour="bom-table" className="border border-border rounded-md overflow-x-auto bg-card">
           <table className="text-sm w-full">
             <thead className="bg-muted/60 text-left text-xs font-medium text-muted-foreground border-b border-border">
               <tr>
@@ -1026,7 +1026,7 @@ export function BomEditor({
       )}
 
       {/* ── Add row button */}
-      <div className="flex justify-center">
+      <div data-tour="bom-add" className="flex justify-center">
         <button
           type="button"
           onClick={handleAddLine}

@@ -4,6 +4,14 @@ import { requireBomAccess } from "@/lib/auth-helpers";
 import { eq, asc } from "drizzle-orm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { BomEditor } from "./editor";
+import { TourTrigger } from "@/components/tour/tour-trigger";
+
+const BOM_TOUR = [
+  { id: "bom-breadcrumb", title: "Navigation", content: "Ces liens te ramènent à ton projet ou à la liste des projets. Tu es dans le BOM Editor.", placement: "bottom" as const },
+  { id: "bom-toolbar", title: "Barre d'outils", content: "Filtre les lignes, importe depuis Excel/CSV, exporte, et surveille l'état de sauvegarde automatique.", placement: "bottom" as const },
+  { id: "bom-table", title: "Table BOM", content: "Chaque ligne est un composant. Clique sur une cellule pour l'éditer. Glisse les lignes pour les réordonner. Colle depuis Excel avec Ctrl+V.", placement: "top" as const },
+  { id: "bom-add", title: "Ajouter une ligne", content: "Appuie sur + pour créer un nouveau composant. Tu peux aussi appuyer sur Entrée en fin de ligne.", placement: "top" as const },
+];
 
 export default async function BomDetailPage({
   params,
@@ -25,7 +33,9 @@ export default async function BomDetailPage({
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">
-      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+      <TourTrigger steps={BOM_TOUR} storageKey="tour_bom" />
+
+      <div data-tour="bom-breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">
         <Link href="/projects" className="hover:text-foreground hover:underline">
           Projets
         </Link>

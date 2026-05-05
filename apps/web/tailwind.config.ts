@@ -31,6 +31,23 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        electric: {
+          DEFAULT: "#6366F1",
+          dim: "#4F46E5",
+          glow: "rgba(99,102,241,0.35)",
+        },
+        "ai-amber": {
+          DEFAULT: "#F59E0B",
+          glow: "rgba(245,158,11,0.35)",
+        },
+        "ai-emerald": {
+          DEFAULT: "#10B981",
+          glow: "rgba(16,185,129,0.35)",
+        },
+        "ai-blue": {
+          DEFAULT: "#3B82F6",
+          glow: "rgba(59,130,246,0.35)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -40,6 +57,13 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      animation: {
+        float: "float 3s ease-in-out infinite",
+        "halo-pulse": "halo-pulse 2s ease-in-out infinite",
+        "led-blink": "led-blink 2.4s ease-in-out infinite",
+        "led-fast": "led-fast 0.8s ease-in-out infinite",
+        "spin-slow": "spin-slow 8s linear infinite",
       },
     },
   },
