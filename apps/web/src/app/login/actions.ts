@@ -55,21 +55,38 @@ export async function loginWithPassword(prevState: AuthState, formData: FormData
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "Email et mot de passe requis." };
 
-  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  let user;
+  try {
+    user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  } catch (e) {
+    console.error("[auth] login lookup failed", e);
+    return { error: "La base de données n’est pas disponible. Vérifie la configuration Vercel." };
+  }
   if (!user || !verifyPassword(password, user.passwordHash ?? "")) return { error: "Email ou mot de passe incorrect." };
   if (!user.emailVerified) {
     try { await sendEmailVerification(user.id); } catch (e) { console.error("[email] sendEmailVerification failed", e); }
     redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
   }
 
-  await createAuthSession(user.id);
+  try {
+    await createAuthSession(user.id);
+  } catch (e) {
+    console.error("[auth] login session creation failed", e);
+    return { error: "Impossible de créer la session. Vérifie que les migrations DB sont appliquées." };
+  }
   redirect("/projects");
 }
 
 export async function requestPasswordReset(_prevState: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) redirect("/forgot-password/check-email");
-  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  let user;
+  try {
+    user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  } catch (e) {
+    console.error("[auth] password reset lookup failed", e);
+    redirect(`/forgot-password/check-email?email=${encodeURIComponent(email)}`);
+  }
   if (user) {
     try { await sendPasswordReset(user.id); } catch (e) { console.error("[email] sendPasswordReset failed", e); }
   }
