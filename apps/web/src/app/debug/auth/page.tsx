@@ -1,3 +1,5 @@
+import { TestMailForm } from "./test-mail-form";
+
 async function getDiagnostics() {
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const response = await fetch(`${baseUrl}/api/debug/auth`, { cache: "no-store" });
@@ -31,6 +33,14 @@ export default async function AuthDebugPage() {
         <pre className="overflow-auto rounded bg-muted p-3 text-xs">
           {JSON.stringify(diagnostics.data.environment ?? diagnostics.data, null, 2)}
         </pre>
+      </section>
+
+      <section className="mb-6 rounded-lg border bg-card p-4">
+        <h2 className="mb-3 text-xl font-semibold">Tester l&apos;envoi mail</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Envoie un email de test via le driver configuré ({diagnostics.data.environment?.mailDriver ?? "inconnu"}).
+        </p>
+        <TestMailForm />
       </section>
 
       <section className="rounded-lg border bg-card p-4">

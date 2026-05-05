@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { sendAccountEmail } from "@/lib/mail";
 
 function enabled() {
   return process.env.NODE_ENV !== "production" || process.env.DEV_AUTH_BYPASS === "true";
@@ -65,9 +66,47 @@ export async function GET() {
       mailDriver: process.env.MAIL_DRIVER ?? null,
       resendApiKey: present(process.env.RESEND_API_KEY),
       mailFrom: process.env.MAIL_FROM ?? null,
+      smtpHost: process.env.SMTP_HOST ?? null,
+      smtpPort: process.env.SMTP_PORT ?? null,
+      smtpUser: present(process.env.SMTP_USER),
+      smtpPass: present(process.env.SMTP_PASS),
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
       supabasePublishableKey: present(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
     },
     checks,
   });
+}
+
+export async function POST(request: Request) {
+  if (!enabled()) {
+    return NextResponse.json({ error: "Debug auth disabled" }, { status: 404 });
+  }
+
+  let to: string | undefined;
+  try {
+    const body = await request.json();
+    to = typeof body?.to === "string" ? body.to.trim() : undefined;
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!to) {
+    return NextResponse.json({ ok: false, error: "Missing 'to' field" }, { status: 400 });
+  }
+
+  const driver = process.env.MAIL_DRIVER ?? (process.env.SMTP_HOST ? "smtp" : process.env.RESEND_API_KEY ? "resend" : "console");
+
+  try {
+    await sendAccountEmail({
+      to,
+      subject: "Test email AutoBOM",
+      text: "Ceci est un email de test envoyé depuis /debug/auth. Si vous le recevez, la configuration mail fonctionne.",
+    });
+    return NextResponse.json({ ok: true, driver, to });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, driver, to, error: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }
