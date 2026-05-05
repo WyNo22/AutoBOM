@@ -9,7 +9,6 @@
         "NEXTAUTH_URL",
         "AUTH_SECRET",
         "DATABASE_URL",
-        "TURSO_AUTH_TOKEN",
         "RESEND_API_KEY",
         "MAIL_FROM",
         "MAIL_DRIVER",
@@ -36,3 +35,4 @@
     }
   }
 }
+

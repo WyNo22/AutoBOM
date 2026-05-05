@@ -1,22 +1,20 @@
 // Standalone migration runner: `pnpm db:migrate`.
-// Reads compiled SQL files from ./drizzle and applies them to the libSQL DB.
+// Reads compiled SQL files from ./drizzle and applies them to the Postgres DB.
 // Env is loaded by tsx via --env-file=.env.local (see package.json script).
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 async function main() {
-  const url = process.env.DATABASE_URL ?? "file:./autbom.db";
-  const authToken = process.env.TURSO_AUTH_TOKEN;
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is required");
 
-  const client = createClient({ url, authToken });
-  await client.execute("PRAGMA foreign_keys = ON;").catch(() => {});
-
+  const client = postgres(url, { max: 1, prepare: false });
   const db = drizzle(client);
   await migrate(db, { migrationsFolder: "./drizzle" });
 
   console.log(`✓ migrations applied (${url})`);
-  client.close();
+  await client.end();
 }
 
 main().catch((err) => {

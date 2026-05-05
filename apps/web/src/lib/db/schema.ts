@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey, real, index } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, primaryKey, doublePrecision, index, boolean, timestamp } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import type { AdapterAccount } from "next-auth/adapters";
 
@@ -6,7 +6,7 @@ import type { AdapterAccount } from "next-auth/adapters";
 // Auth.js core tables (required by @auth/drizzle-adapter)
 // ============================================================================
 
-export const users = sqliteTable("user", {
+export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -15,12 +15,12 @@ export const users = sqliteTable("user", {
   lastName: text("last_name"),
   passwordHash: text("password_hash"),
   email: text("email").unique(),
-  emailVerified: integer("emailVerified", { mode: "timestamp_ms" }),
+  emailVerified: timestamp("emailVerified"),
   image: text("image"),
-  aiSourcingEnabled: integer("ai_sourcing_enabled", { mode: "boolean" }).notNull().default(true),
+  aiSourcingEnabled: boolean("ai_sourcing_enabled").notNull().default(true),
 });
 
-export const accounts = sqliteTable(
+export const accounts = pgTable(
   "account",
   {
     userId: text("userId")
@@ -44,27 +44,27 @@ export const accounts = sqliteTable(
   })
 );
 
-export const sessions = sqliteTable("session", {
+export const sessions = pgTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
+  expires: timestamp("expires").notNull(),
 });
 
-export const verificationTokens = sqliteTable(
+export const verificationTokens = pgTable(
   "verificationToken",
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
-    expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
+    expires: timestamp("expires").notNull(),
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
   })
 );
 
-export const accountTokens = sqliteTable(
+export const accountTokens = pgTable(
   "account_token",
   {
     token: text("token").primaryKey(),
@@ -72,11 +72,11 @@ export const accountTokens = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     type: text("type", { enum: ["email_verification", "password_reset"] }).notNull(),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-    usedAt: integer("used_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at")
       .notNull()
-      .default(sql`(unixepoch() * 1000)`),
+      .defaultNow(),
   },
   (t) => ({
     userIdx: index("account_token_user_idx").on(t.userId),
@@ -88,7 +88,7 @@ export const accountTokens = sqliteTable(
 // AUTBOM domain tables
 // ============================================================================
 
-export const teams = sqliteTable("team", {
+export const teams = pgTable("team", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -96,12 +96,12 @@ export const teams = sqliteTable("team", {
   ownerId: text("owner_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
+  createdAt: timestamp("created_at")
     .notNull()
-    .default(sql`(unixepoch() * 1000)`),
+    .defaultNow(),
 });
 
-export const teamMembers = sqliteTable(
+export const teamMembers = pgTable(
   "team_member",
   {
     teamId: text("team_id")
@@ -115,16 +115,16 @@ export const teamMembers = sqliteTable(
     })
       .notNull()
       .default("member"),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
+    createdAt: timestamp("created_at")
       .notNull()
-      .default(sql`(unixepoch() * 1000)`),
+      .defaultNow(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.teamId, t.userId] }),
   })
 );
 
-export const teamInvites = sqliteTable(
+export const teamInvites = pgTable(
   "team_invite",
   {
     id: text("id")
@@ -140,11 +140,11 @@ export const teamInvites = sqliteTable(
       .notNull()
       .default("member"),
     token: text("token").notNull().unique(),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-    acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
+    expiresAt: timestamp("expires_at").notNull(),
+    acceptedAt: timestamp("accepted_at"),
+    createdAt: timestamp("created_at")
       .notNull()
-      .default(sql`(unixepoch() * 1000)`),
+      .defaultNow(),
   },
   (t) => ({
     teamIdx: index("team_invite_team_idx").on(t.teamId),
@@ -152,7 +152,7 @@ export const teamInvites = sqliteTable(
   })
 );
 
-export const projects = sqliteTable("project", {
+export const projects = pgTable("project", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -162,12 +162,12 @@ export const projects = sqliteTable("project", {
   ownerId: text("owner_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
+  createdAt: timestamp("created_at")
     .notNull()
-    .default(sql`(unixepoch() * 1000)`),
+    .defaultNow(),
 });
 
-export const projectMembers = sqliteTable(
+export const projectMembers = pgTable(
   "project_member",
   {
     projectId: text("project_id")
@@ -187,20 +187,20 @@ export const projectMembers = sqliteTable(
   })
 );
 
-export const suppliers = sqliteTable("supplier", {
+export const suppliers = pgTable("supplier", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   website: text("website"),
-  defaultShippingHT: real("default_shipping_ht"),
+  defaultShippingHT: doublePrecision("default_shipping_ht"),
   // Identifier matching KNOWN_SUPPLIER_SITES in @autbom/shared (tolery, amazon, ...)
   // Used by the browser extension to know which content script to invoke.
   knownSite: text("known_site"),
   notes: text("notes"),
 });
 
-export const boms = sqliteTable(
+export const boms = pgTable(
   "bom",
   {
     id: text("id")
@@ -216,19 +216,19 @@ export const boms = sqliteTable(
       .notNull()
       .default("draft"),
     currentVersion: integer("current_version").notNull().default(1),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
+    createdAt: timestamp("created_at")
       .notNull()
-      .default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .defaultNow(),
+    updatedAt: timestamp("updated_at")
       .notNull()
-      .default(sql`(unixepoch() * 1000)`),
+      .defaultNow(),
   },
   (t) => ({
     projectIdx: index("bom_project_idx").on(t.projectId),
   })
 );
 
-export const bomLines = sqliteTable(
+export const bomLines = pgTable(
   "bom_line",
   {
     id: text("id")
@@ -239,13 +239,13 @@ export const bomLines = sqliteTable(
       .references(() => boms.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     designation: text("designation").notNull(),
-    qty: real("qty").notNull().default(1),
+    qty: doublePrecision("qty").notNull().default(1),
     material: text("material"),
     supplierId: text("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
     supplierRef: text("supplier_ref"),
     productUrl: text("product_url"),
-    unitPriceHT: real("unit_price_ht"),
-    tva: real("tva"),
+    unitPriceHT: doublePrecision("unit_price_ht"),
+    tva: doublePrecision("tva"),
     leadTimeDays: integer("lead_time_days"),
     notes: text("notes"),
     status: text("status", {
@@ -259,7 +259,7 @@ export const bomLines = sqliteTable(
   })
 );
 
-export const bomVersions = sqliteTable("bom_version", {
+export const bomVersions = pgTable("bom_version", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -269,15 +269,15 @@ export const bomVersions = sqliteTable("bom_version", {
   versionNumber: integer("version_number").notNull(),
   // JSON snapshot of BomLine[] at submit time
   snapshot: text("snapshot").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
+  createdAt: timestamp("created_at")
     .notNull()
-    .default(sql`(unixepoch() * 1000)`),
+    .defaultNow(),
   createdById: text("created_by_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
 });
 
-export const attachments = sqliteTable(
+export const attachments = pgTable(
   "attachment",
   {
     id: text("id")
@@ -295,16 +295,16 @@ export const attachments = sqliteTable(
     // Either a storage key (fs/s3) or an external URL.
     url: text("url").notNull(),
     sizeBytes: integer("size_bytes"),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
+    createdAt: timestamp("created_at")
       .notNull()
-      .default(sql`(unixepoch() * 1000)`),
+      .defaultNow(),
   },
   (t) => ({
     lineIdx: index("attachment_line_idx").on(t.bomLineId),
   })
 );
 
-export const validations = sqliteTable("validation", {
+export const validations = pgTable("validation", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -318,13 +318,13 @@ export const validations = sqliteTable("validation", {
     .notNull()
     .default("pending"),
   comment: text("comment"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
+  createdAt: timestamp("created_at")
     .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+    .defaultNow(),
+  decidedAt: timestamp("decided_at"),
 });
 
-export const cartBatches = sqliteTable("cart_batch", {
+export const cartBatches = pgTable("cart_batch", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -339,14 +339,14 @@ export const cartBatches = sqliteTable("cart_batch", {
   })
     .notNull()
     .default("draft"),
-  totalHT: real("total_ht").notNull().default(0),
-  totalTTC: real("total_ttc").notNull().default(0),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
+  totalHT: doublePrecision("total_ht").notNull().default(0),
+  totalTTC: doublePrecision("total_ttc").notNull().default(0),
+  createdAt: timestamp("created_at")
     .notNull()
-    .default(sql`(unixepoch() * 1000)`),
+    .defaultNow(),
 });
 
-export const cartBatchLines = sqliteTable(
+export const cartBatchLines = pgTable(
   "cart_batch_line",
   {
     cartBatchId: text("cart_batch_id")
@@ -355,7 +355,7 @@ export const cartBatchLines = sqliteTable(
     bomLineId: text("bom_line_id")
       .notNull()
       .references(() => bomLines.id, { onDelete: "cascade" }),
-    qty: real("qty").notNull().default(1),
+    qty: doublePrecision("qty").notNull().default(1),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.cartBatchId, t.bomLineId] }),
@@ -395,3 +395,4 @@ export const cartBatchesRelations = relations(cartBatches, ({ one, many }) => ({
   supplier: one(suppliers, { fields: [cartBatches.supplierId], references: [suppliers.id] }),
   lines: many(cartBatchLines),
 }));
+
