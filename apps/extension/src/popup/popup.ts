@@ -30,6 +30,7 @@ const btnLogin = document.getElementById("btn-login") as HTMLButtonElement;
 const btnLoginMain = document.getElementById("btn-login-main") as HTMLButtonElement;
 const btnRefreshSession = document.getElementById("btn-refresh-session") as HTMLButtonElement;
 const connStatus = document.getElementById("conn-status")!;
+const connText   = document.getElementById("conn-text")!;
 
 // ── Helpers
 function show(el: HTMLElement) { el.classList.remove("hidden"); }
@@ -131,7 +132,11 @@ async function init() {
     capName.textContent = p.designation;
     capSupplier.textContent = p.supplierName;
     capRef.textContent = p.supplierRef ? `Réf: ${p.supplierRef}` : "";
-    capPrice.textContent = p.unitPriceHT ? `${p.unitPriceHT.toFixed(2)} € HT` : "";
+    if (p.unitPriceHT) {
+      capPrice.textContent = `${p.unitPriceHT.toFixed(2)} € HT`;
+    } else {
+      capPrice.classList.add("hidden");
+    }
 
     hideMainViews();
     show(viewCapture);
@@ -177,15 +182,15 @@ async function checkConnection(base: string) {
   try {
     const r = await fetch(`${base}/api/me/boms`, { credentials: "include" });
     if (r.ok) {
-      connStatus.textContent = "✓ Connecté à AutoBOM";
-      connStatus.style.color = "#16a34a";
+      connStatus.className = "conn-badge ok";
+      connText.textContent  = "Connecté à AutoBOM";
     } else {
-      connStatus.textContent = "✗ Non connecté (clique le bouton ci-dessous)";
-      connStatus.style.color = "#dc2626";
+      connStatus.className = "conn-badge err";
+      connText.textContent  = "Non connecté — clique le bouton ci-dessous";
     }
   } catch {
-    connStatus.textContent = "✗ Serveur inaccessible";
-    connStatus.style.color = "#dc2626";
+    connStatus.className = "conn-badge err";
+    connText.textContent  = "Serveur inaccessible";
   }
 }
 

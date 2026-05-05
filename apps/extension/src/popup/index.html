@@ -5,121 +5,233 @@
     <title>AutoBOM</title>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
       body {
         font-family: system-ui, -apple-system, sans-serif;
         font-size: 13px;
-        min-width: 320px;
+        min-width: 340px;
         max-width: 360px;
-        background: #f8fafc;
-        color: #1e293b;
+        background: #07071a;
+        color: #f1f5f9;
       }
+
+      /* ── Header ── */
       .header {
-        background: #1e293b;
-        color: #fff;
-        padding: 10px 14px;
+        background: #07071a;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        padding: 11px 14px;
         display: flex;
         align-items: center;
         justify-content: space-between;
       }
-      .header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
-      .header a { font-size: 11px; color: #94a3b8; text-decoration: none; }
-      .header a:hover { color: #e2e8f0; }
-      .section { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; }
-      .label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
-      .product-name { font-weight: 600; font-size: 13px; line-height: 1.4; margin-bottom: 4px; }
-      .product-meta { font-size: 11px; color: #64748b; }
-      .product-meta span { margin-right: 10px; }
+      .header-brand { display: flex; align-items: center; gap: 8px; }
+      .header-brand span { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; color: #f1f5f9; }
+      .header a {
+        font-size: 11px; color: rgba(255,255,255,0.35);
+        text-decoration: none; transition: color .15s;
+      }
+      .header a:hover { color: rgba(255,255,255,0.7); }
+
+      /* ── Sections ── */
+      .section { padding: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .section:last-child { border-bottom: none; }
+
+      .label {
+        font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35);
+        text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
+      }
+
+      /* ── Product card ── */
+      .product-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+      .product-name { font-weight: 600; font-size: 13px; line-height: 1.4; color: #f1f5f9; margin-bottom: 5px; }
+      .product-meta { font-size: 11px; color: rgba(255,255,255,0.4); display: flex; flex-wrap: wrap; gap: 8px; }
+      .tag {
+        background: rgba(99,102,241,0.15);
+        border: 1px solid rgba(99,102,241,0.25);
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 10px;
+        color: #a5b4fc;
+      }
+
+      /* ── Inputs ── */
       select, input[type=text] {
         width: 100%;
-        padding: 6px 10px;
-        border: 1px solid #cbd5e1;
+        padding: 7px 10px;
+        border: 1px solid rgba(255,255,255,0.1);
         border-radius: 6px;
         font-size: 13px;
-        background: #fff;
+        background: rgba(255,255,255,0.05);
+        color: #f1f5f9;
         outline: none;
+        transition: border-color .15s, box-shadow .15s;
+        appearance: none;
       }
-      select:focus, input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px #dbeafe; }
+      select { cursor: pointer; }
+      select option { background: #1e1b4b; color: #f1f5f9; }
+      select:focus, input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
+      }
+
+      /* ── Buttons ── */
       .btn {
-        display: block;
-        width: 100%;
-        padding: 8px;
-        border: none;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        text-align: center;
+        display: block; width: 100%; padding: 9px;
+        border: none; border-radius: 7px;
+        font-size: 13px; font-weight: 600;
+        cursor: pointer; text-align: center;
+        transition: background .15s, transform .1s, opacity .15s;
       }
-      .btn-primary { background: #2563eb; color: #fff; }
-      .btn-primary:hover { background: #1d4ed8; }
-      .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
-      .btn-ghost { background: transparent; color: #64748b; border: 1px solid #e2e8f0; margin-top: 6px; }
-      .btn-ghost:hover { background: #f1f5f9; }
-      .status { font-size: 12px; padding: 8px 14px; }
-      .status.ok { color: #16a34a; }
-      .status.err { color: #dc2626; }
-      .hidden { display: none !important; }
+      .btn:active { transform: scale(0.98); }
+      .btn-primary { background: #6366f1; color: #fff; }
+      .btn-primary:hover { background: #4f52d4; }
+      .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+      .btn-ghost {
+        background: transparent; color: rgba(255,255,255,0.4);
+        border: 1px solid rgba(255,255,255,0.1); margin-top: 7px;
+      }
+      .btn-ghost:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
+
+      /* ── Status ── */
+      .status {
+        font-size: 12px; padding: 8px 14px;
+        display: flex; align-items: center; gap: 6px;
+      }
+      .status.ok  { color: #34d399; }
+      .status.err { color: #f87171; }
+
+      /* ── Hero (empty / login) ── */
+      .hero {
+        display: flex; flex-direction: column;
+        align-items: center; text-align: center;
+        padding: 24px 16px 20px;
+        gap: 14px;
+      }
+      .hero-text { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6; max-width: 240px; }
+      .hero-title { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+
+      /* ── Connection status ── */
+      .conn-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 12px; color: rgba(255,255,255,0.4);
+        margin-bottom: 10px;
+      }
+      .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+      .conn-badge.ok  { color: #34d399; }
+      .conn-badge.err { color: #f87171; }
+
       .gap { height: 8px; }
-      .row { display: flex; gap: 8px; }
-      .row > * { flex: 1; }
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
+
+    <!-- ── Header ── -->
     <div class="header">
-      <h1>AutoBOM</h1>
-      <a href="#" id="btn-settings-toggle">⚙ Réglages</a>
+      <div class="header-brand">
+        <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="14,2 26,24 2,24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="round"/>
+          <line x1="7" y1="18" x2="21" y2="18" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+          <line x1="10.5" y1="11" x2="14" y2="5" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="17.5" y1="11" x2="14" y2="5" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>AutoBOM</span>
+      </div>
+      <a href="#" id="btn-settings-toggle">Réglages</a>
     </div>
 
-    <!-- Capture pending -->
+    <!-- ── View: capture pending ── -->
     <div id="view-capture" class="hidden">
       <div class="section">
         <div class="label">Produit capturé</div>
-        <div class="product-name" id="cap-name"></div>
-        <div class="product-meta">
-          <span id="cap-supplier"></span>
-          <span id="cap-ref"></span>
-          <span id="cap-price"></span>
+        <div class="product-card">
+          <div class="product-name" id="cap-name"></div>
+          <div class="product-meta">
+            <span id="cap-supplier"></span>
+            <span id="cap-ref"></span>
+            <span id="cap-price" class="tag"></span>
+          </div>
         </div>
       </div>
       <div class="section">
         <div class="label">Ajouter à la BOM</div>
-        <div class="gap"></div>
         <select id="bom-select"><option value="">Chargement…</option></select>
         <div class="gap"></div>
         <button class="btn btn-primary" id="btn-send">Envoyer dans la BOM</button>
-        <button class="btn btn-ghost" id="btn-discard">Ignorer</button>
+        <button class="btn btn-ghost" id="btn-discard">Ignorer cette capture</button>
       </div>
       <div class="status hidden" id="send-status"></div>
     </div>
 
-    <div id="view-login" class="section hidden">
-      <div class="label">Connexion requise</div>
-      <div class="gap"></div>
-      <p style="color:#64748b;line-height:1.5;margin-bottom:10px">
-        Connecte-toi à AutoBOM pour afficher tes BOMs et envoyer les produits capturés.
-      </p>
-      <button class="btn btn-primary" id="btn-login-main">Se connecter à AutoBOM</button>
-      <button class="btn btn-ghost" id="btn-refresh-session">J'ai déjà connecté mon compte</button>
+    <!-- ── View: not connected ── -->
+    <div id="view-login" class="hidden">
+      <div class="hero">
+        <!-- Agent cube SVG -->
+        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="6" width="60" height="60" rx="14" fill="rgba(99,102,241,0.07)"/>
+          <rect x="10" y="10" width="52" height="52" rx="11" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+          <rect x="20" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.9"/>
+          <rect x="31" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.5"/>
+          <rect x="42" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.7"/>
+          <rect x="20" y="31" width="9" height="9" rx="2" fill="#6366f1" opacity="0.6"/>
+          <rect x="31" y="31" width="9" height="9" rx="2" fill="#a5b4fc"/>
+          <rect x="42" y="31" width="9" height="9" rx="2" fill="#6366f1" opacity="0.4"/>
+          <rect x="20" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.5"/>
+          <rect x="31" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.7"/>
+          <rect x="42" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.8"/>
+          <line x1="10" y1="36" x2="62" y2="36" stroke="#6366f1" stroke-width="1" opacity="0.25"/>
+        </svg>
+        <div>
+          <div class="hero-title">Connexion requise</div>
+          <div class="hero-text">Connecte-toi à AutoBOM pour accéder à tes BOMs et capturer des produits.</div>
+        </div>
+        <button class="btn btn-primary" id="btn-login-main" style="width:100%;max-width:260px">Se connecter à AutoBOM</button>
+        <button class="btn btn-ghost" id="btn-refresh-session" style="width:100%;max-width:260px;margin-top:0">J'ai déjà connecté mon compte</button>
+      </div>
     </div>
 
-    <!-- No pending capture -->
-    <div id="view-empty" class="section">
-      <p style="color:#64748b;line-height:1.5">
-        Navigue sur une page produit (Tolery, Amazon, Misumi, RS…)
-        et clique le bouton bleu pour capturer une référence.
-      </p>
+    <!-- ── View: idle / no capture ── -->
+    <div id="view-empty">
+      <div class="hero">
+        <!-- Agent cube SVG -->
+        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="6" width="60" height="60" rx="14" fill="rgba(99,102,241,0.07)"/>
+          <rect x="10" y="10" width="52" height="52" rx="11" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+          <rect x="20" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.9"/>
+          <rect x="31" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.5"/>
+          <rect x="42" y="20" width="9" height="9" rx="2" fill="#6366f1" opacity="0.7"/>
+          <rect x="20" y="31" width="9" height="9" rx="2" fill="#6366f1" opacity="0.6"/>
+          <rect x="31" y="31" width="9" height="9" rx="2" fill="#a5b4fc"/>
+          <rect x="42" y="31" width="9" height="9" rx="2" fill="#6366f1" opacity="0.4"/>
+          <rect x="20" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.5"/>
+          <rect x="31" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.7"/>
+          <rect x="42" y="42" width="9" height="9" rx="2" fill="#6366f1" opacity="0.8"/>
+          <line x1="10" y1="36" x2="62" y2="36" stroke="#6366f1" stroke-width="1" opacity="0.25"/>
+        </svg>
+        <div>
+          <div class="hero-title">Prêt à capturer</div>
+          <div class="hero-text">Navigue sur une page produit (Tolery, Amazon, Misumi, RS…) et clique le bouton pour capturer une référence.</div>
+        </div>
+      </div>
     </div>
 
-    <!-- Settings -->
+    <!-- ── View: settings ── -->
     <div id="view-settings" class="section hidden">
-      <div class="label">Connexion</div>
-      <div class="gap"></div>
-      <div id="conn-status" style="font-size:12px;color:#64748b;margin-bottom:6px">Vérification…</div>
+      <div class="label">Statut de connexion</div>
+      <div id="conn-status" class="conn-badge">
+        <span class="conn-dot"></span>
+        <span id="conn-text">Vérification…</span>
+      </div>
       <button class="btn btn-primary" id="btn-login">Ouvrir AutoBOM &amp; se connecter</button>
+      <div class="gap" style="height:14px"></div>
+      <div class="label">URL du serveur AutoBOM</div>
       <div class="gap"></div>
-      <div class="label" style="margin-top:8px">URL serveur AutoBOM</div>
-      <div class="gap"></div>
-      <input type="text" id="input-base" placeholder="https://auto-bom-web-soh3.vercel.app" />
+      <input type="text" id="input-base" placeholder="https://autobom.app" />
       <div class="gap"></div>
       <button class="btn btn-ghost" id="btn-save-settings">Enregistrer l'URL</button>
     </div>
