@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db, accountTokens, users } from "@/lib/db";
 import { sendAccountEmail } from "@/lib/mail";
+import { buildEmailHtml } from "@/lib/email-html";
 
 type AccountTokenType = "email_verification" | "password_reset";
 
@@ -34,6 +35,13 @@ export async function sendEmailVerification(userId: string) {
     to: user.email,
     subject: "Valide ton compte AutoBOM",
     text: `Bienvenue sur AutoBOM. Valide ton compte ici :\n\n${url}\n\nCe lien expire dans 24 heures.`,
+    html: buildEmailHtml({
+      heading: "Valide ton adresse email",
+      body: "Tu viens de créer un compte AutoBOM. Clique sur le bouton ci-dessous pour activer ton compte.",
+      ctaUrl: url,
+      ctaLabel: "Activer mon compte →",
+      expiryNote: "Ce lien est valable 24\u00a0heures. Si tu n'es pas à l'origine de cette inscription, tu peux ignorer cet email.",
+    }),
   });
 }
 
@@ -46,6 +54,13 @@ export async function sendPasswordReset(userId: string) {
     to: user.email,
     subject: "Réinitialise ton mot de passe AutoBOM",
     text: `Tu peux réinitialiser ton mot de passe ici :\n\n${url}\n\nCe lien expire dans 1 heure.`,
+    html: buildEmailHtml({
+      heading: "Réinitialise ton mot de passe",
+      body: "Nous avons reçu une demande de réinitialisation de mot de passe pour ton compte AutoBOM. Clique sur le bouton ci-dessous pour choisir un nouveau mot de passe.",
+      ctaUrl: url,
+      ctaLabel: "Réinitialiser mon mot de passe →",
+      expiryNote: "Ce lien est valable 1\u00a0heure. Si tu n'es pas à l'origine de cette demande, tu peux ignorer cet email.",
+    }),
   });
 }
 

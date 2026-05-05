@@ -1,9 +1,11 @@
 import "server-only";
+import { buildEmailHtml } from "./email-html";
 
 async function sendViaSmtp(params: {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }) {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT ?? 587);
@@ -25,6 +27,7 @@ async function sendViaSmtp(params: {
     to: params.to,
     subject: params.subject,
     text: params.text,
+    ...(params.html ? { html: params.html } : {}),
   });
 }
 
@@ -58,6 +61,14 @@ export async function sendMagicLink(params: {
     return;
   }
 
+  const magicLinkHtml = buildEmailHtml({
+    heading: "Connectez-vous à AutoBOM",
+    body: "Cliquez sur le bouton ci-dessous pour accéder à votre compte. Ce lien est à usage unique.",
+    ctaUrl: url,
+    ctaLabel: "Se connecter →",
+    expiryNote: "Ce lien expire bientôt. Si vous n'avez pas demandé cet accès, ignorez cet email.",
+  });
+
   if (driver === "resend") {
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.MAIL_FROM ?? "AutoBOM <noreply@autobom.app>";
@@ -71,6 +82,7 @@ export async function sendMagicLink(params: {
       to: identifier,
       subject: "Votre lien de connexion AutoBOM",
       text: `Connectez-vous à AutoBOM :\n\n${url}\n\nCe lien expire bientôt.`,
+      html: magicLinkHtml,
     });
     return;
   }
@@ -80,6 +92,7 @@ export async function sendMagicLink(params: {
       to: identifier,
       subject: "Votre lien de connexion AutoBOM",
       text: `Connectez-vous à AutoBOM :\n\n${url}\n\nCe lien expire bientôt.`,
+      html: magicLinkHtml,
     });
     return;
   }
@@ -91,6 +104,7 @@ export async function sendAccountEmail(params: {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }) {
   const driver = getMailDriver();
 
@@ -115,6 +129,7 @@ export async function sendAccountEmail(params: {
       to: params.to,
       subject: params.subject,
       text: params.text,
+      ...(params.html ? { html: params.html } : {}),
     });
     return;
   }
