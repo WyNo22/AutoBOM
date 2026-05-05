@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatEUR } from "@/lib/utils";
+import { AgentBOM } from "@/components/agent-bom";
+import { useAiState } from "@/components/ai-state-context";
 import {
   addLine,
   deleteLines,
@@ -228,6 +230,7 @@ export function BomEditor({
   const [aiSourcing, setAiSourcing] = React.useState<Record<string, AiSourcingState>>({});
   // DXF preview state
   const [dxfPreview, setDxfPreview] = React.useState<{ name: string; svg: string } | null>(null);
+  const { state: aiGlobalState, setState: setAiGlobalState } = useAiState();
   const [sort, setSort] = React.useState<{ key: string; dir: "asc" | "desc" } | null>(null);
   // AI live search: abort controller ref + debounce
   const aiAbortRef = React.useRef<AbortController | null>(null);
@@ -621,6 +624,7 @@ export function BomEditor({
       ...prev,
       [line.id]: { loading: true, error: null, suggestions: prev[line.id]?.suggestions ?? [], parsed: prev[line.id]?.parsed },
     }));
+    setAiGlobalState("searching");
     try {
       const res = await fetch("/api/sourcing/suggest", {
         method: "POST",
@@ -635,6 +639,7 @@ export function BomEditor({
         warning?: string;
       };
       if (!res.ok) throw new Error(data.error ?? "Recherche IA impossible");
+      setAiGlobalState("success");
       setAiSourcing((prev) => ({
         ...prev,
         [line.id]: {
@@ -646,6 +651,7 @@ export function BomEditor({
       }));
     } catch (error) {
       if ((error as { name?: string }).name === "AbortError") return;
+      setAiGlobalState("idle");
       setAiSourcing((prev) => ({
         ...prev,
         [line.id]: {
@@ -856,11 +862,14 @@ export function BomEditor({
 
       {/* ── Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-semibold tracking-tight mr-auto">
+        <h1 className="text-xl font-semibold tracking-tight mr-auto flex items-center gap-3">
           {bomName}{" "}
-          <span className="text-xs font-normal text-muted-foreground capitalize ml-2">
+          <span className="text-xs font-normal text-muted-foreground capitalize">
             {bomStatus}
           </span>
+          {aiSourcingEnabled && (
+            <AgentBOM state={aiGlobalState} size={40} className="-mb-1" />
+          )}
         </h1>
 
         <div className="relative">
