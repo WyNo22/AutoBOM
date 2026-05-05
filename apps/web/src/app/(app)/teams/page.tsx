@@ -51,7 +51,7 @@ export default async function TeamsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <TourTrigger steps={TEAMS_TOUR} storageKey="tour_teams" />
+      <TourTrigger steps={TEAMS_TOUR} storageKey="tour_teams" userId={userId} />
 
       <div data-tour="teams-title">
         <h1 className="text-2xl font-semibold tracking-tight">Équipes</h1>

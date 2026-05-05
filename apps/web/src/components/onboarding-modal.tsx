@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ChevronRight, X } from "lucide-react";
-import { AgentCube } from "./agent-cube";
+import { AgentBOM } from "./agent-bom";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -65,20 +65,21 @@ function LottieCard({ lottie, accent, bg }: { lottie: string; accent: string; bg
   );
 }
 
-export function OnboardingModal() {
+export function OnboardingModal({ userId }: { userId: string }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [hovered, setHovered] = React.useState<string | null>(null);
+  const storageKey = `autobom_onboarded_${userId}`;
 
   React.useEffect(() => {
-    if (typeof window !== "undefined" && !localStorage.getItem("autobom_onboarded")) {
+    if (typeof window !== "undefined" && !localStorage.getItem(storageKey)) {
       const t = setTimeout(() => setOpen(true), 400);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [storageKey]);
 
   function dismiss() {
-    localStorage.setItem("autobom_onboarded", "1");
+    localStorage.setItem(storageKey, "1");
     setOpen(false);
   }
 
@@ -109,7 +110,7 @@ export function OnboardingModal() {
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-white/8">
           <div className="flex items-center gap-3">
-            <AgentCube state="idle" size={36} />
+            <AgentBOM state="idle" size={40} />
             <div>
               <h2 className="text-base font-semibold tracking-tight text-foreground">
                 Que veux-tu explorer ?

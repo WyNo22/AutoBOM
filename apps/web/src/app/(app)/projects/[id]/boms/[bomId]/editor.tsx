@@ -9,9 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatEUR } from "@/lib/utils";
-import { AgentCube, type AgentState } from "@/components/agent-cube";
-import { AgentCubeScenes } from "@/components/agent-cube-scenes";
-import { LayoutGroup } from "framer-motion";
+import { AgentBOM } from "@/components/agent-bom";
+import type { AiState } from "@/components/ai-state-context";
 import { useAiState } from "@/components/ai-state-context";
 import {
   addLine,
@@ -837,7 +836,6 @@ export function BomEditor({
   const totalTTC = lines.reduce((sum, l) => sum + (l.unitPriceHT ?? 0) * l.qty * (1 + (l.tva ?? 0)), 0);
 
   return (
-    <LayoutGroup>
     <div onPaste={handlePaste} className="space-y-3">
       {/* ── DXF Modal */}
       {dxfPreview && (
@@ -871,7 +869,7 @@ export function BomEditor({
             {bomStatus}
           </span>
           {aiSourcingEnabled && !sourcingLineId && (
-            <AgentCube layoutId="agent-main" state={aiGlobalState === "validating" ? "searching" : (aiGlobalState as AgentState)} size={40} className="-mb-1" />
+            <AgentBOM state={aiGlobalState as AiState} size={40} className="-mb-1" />
           )}
         </h1>
 
@@ -1040,7 +1038,6 @@ export function BomEditor({
         </button>
       </div>
     </div>
-    </LayoutGroup>
   );
 }
 
@@ -1254,19 +1251,25 @@ function AiSourcingPanel({
   onSkip: () => void;
 }) {
   const { state: aiGlobalState } = useAiState();
-  const cubeState = aiGlobalState === "validating" ? "searching" : aiGlobalState === "warning" ? "warning" : aiGlobalState === "success" ? "success" : state.loading ? "searching" : "idle";
+  const cubeState: AiState = state.error
+    ? "warning"
+    : !state.loading && state.suggestions.length > 0
+    ? "success"
+    : "searching";
 
   return (
     <div className="flex flex-col gap-3 py-1">
       {/* Header: cube + title + actions */}
       <div className="flex items-center gap-3">
-        <AgentCube layoutId="agent-main" state={cubeState as AgentState} size={52} />
+        <AgentBOM state={cubeState} size={60} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
             <Sparkles className="size-3.5 text-blue-400 shrink-0" />
             <span className="truncate">Sourcing IA « {line.designation} »</span>
           </div>
-          <AgentCubeScenes active={state.loading} />
+          {state.loading && (
+            <div className="text-[11px] text-blue-300/80 font-mono animate-pulse">Recherche en cours…</div>
+          )}
           {!state.loading && (
             <div className="text-[11px] text-muted-foreground">
               {state.suggestions.length > 0

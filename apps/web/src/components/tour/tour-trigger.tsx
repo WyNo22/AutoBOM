@@ -4,18 +4,19 @@ import * as React from "react";
 import { HelpCircle } from "lucide-react";
 import { useTour, type TourStep } from "./tour-context";
 
-export function TourTrigger({ steps, storageKey }: { steps: TourStep[]; storageKey: string }) {
+export function TourTrigger({ steps, storageKey, userId }: { steps: TourStep[]; storageKey: string; userId?: string }) {
   const { start } = useTour();
+  const scopedKey = userId ? `${storageKey}_${userId}` : storageKey;
 
   React.useEffect(() => {
-    if (typeof window !== "undefined" && !localStorage.getItem(storageKey)) {
+    if (typeof window !== "undefined" && !localStorage.getItem(scopedKey)) {
       const t = setTimeout(() => {
         start(steps);
-        localStorage.setItem(storageKey, "1");
+        localStorage.setItem(scopedKey, "1");
       }, 800);
       return () => clearTimeout(t);
     }
-  }, [storageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scopedKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <button

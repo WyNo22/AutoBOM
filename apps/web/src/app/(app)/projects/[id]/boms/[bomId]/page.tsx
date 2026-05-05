@@ -33,7 +33,7 @@ export default async function BomDetailPage({
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">
-      <TourTrigger steps={BOM_TOUR} storageKey="tour_bom" />
+      <TourTrigger steps={BOM_TOUR} storageKey="tour_bom" userId={userId} />
 
       <div data-tour="bom-breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">
         <Link href="/projects" className="hover:text-foreground hover:underline">

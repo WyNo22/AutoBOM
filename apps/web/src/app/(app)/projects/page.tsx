@@ -34,7 +34,7 @@ export default async function ProjectsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <TourTrigger steps={PROJECTS_TOUR} storageKey="tour_projects" />
+      <TourTrigger steps={PROJECTS_TOUR} storageKey="tour_projects" userId={userId} />
 
       <div className="flex items-end justify-between">
         <div data-tour="projects-title">

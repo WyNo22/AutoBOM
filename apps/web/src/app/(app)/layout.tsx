@@ -20,7 +20,7 @@ export default async function AppLayout({
     <AiStateProvider>
       <TourProvider>
       <MeshBackground />
-      <OnboardingModal />
+      <OnboardingModal userId={session.user.id ?? ""} />
       <TourTooltip />
       <div className="flex min-h-screen">
         <Sidebar />
