@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useTour } from "./tour-context";
 import { X, ChevronRight, ChevronLeft } from "lucide-react";
-import { AgentBOM } from "@/components/agent-bom";
+import { AgentCube } from "@/components/agent-cube";
 
 export function TourTooltip() {
   const { steps, current, active, next, prev, stop } = useTour();
@@ -91,7 +91,7 @@ export function TourTooltip() {
 
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            <AgentBOM state="idle" size={28} className="shrink-0" />
+            <AgentCube state="idle" size={28} className="shrink-0" />
             <span className="text-sm font-semibold text-foreground">{step.title}</span>
           </div>
           <button

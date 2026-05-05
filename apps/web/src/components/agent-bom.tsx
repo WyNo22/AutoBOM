@@ -7,6 +7,7 @@ const GLOW: Record<AiState, string> = {
   idle:       "rgba(99,102,241,0.4)",
   searching:  "rgba(59,130,246,0.7)",
   validating: "rgba(245,158,11,0.6)",
+  warning:    "rgba(251,146,60,0.6)",
   success:    "rgba(16,185,129,0.65)",
 };
 
@@ -14,6 +15,7 @@ const LED_COLOR: Record<AiState, string> = {
   idle:       "#a5b4fc",
   searching:  "#93c5fd",
   validating: "#fcd34d",
+  warning:    "#fb923c",
   success:    "#6ee7b7",
 };
 

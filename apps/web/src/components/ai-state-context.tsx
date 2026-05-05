@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-export type AiState = "idle" | "searching" | "validating" | "success";
+export type AiState = "idle" | "searching" | "validating" | "warning" | "success";
 
 type AiStateContextValue = {
   state: AiState;

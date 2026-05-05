@@ -9,7 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatEUR } from "@/lib/utils";
-import { AgentBOM } from "@/components/agent-bom";
+import { AgentCube, type AgentState } from "@/components/agent-cube";
+import { AgentCubeScenes } from "@/components/agent-cube-scenes";
+import { LayoutGroup } from "framer-motion";
 import { useAiState } from "@/components/ai-state-context";
 import {
   addLine,
@@ -835,6 +837,7 @@ export function BomEditor({
   const totalTTC = lines.reduce((sum, l) => sum + (l.unitPriceHT ?? 0) * l.qty * (1 + (l.tva ?? 0)), 0);
 
   return (
+    <LayoutGroup>
     <div onPaste={handlePaste} className="space-y-3">
       {/* ── DXF Modal */}
       {dxfPreview && (
@@ -867,8 +870,8 @@ export function BomEditor({
           <span className="text-xs font-normal text-muted-foreground capitalize">
             {bomStatus}
           </span>
-          {aiSourcingEnabled && (
-            <AgentBOM state={aiGlobalState} size={40} className="-mb-1" />
+          {aiSourcingEnabled && !sourcingLineId && (
+            <AgentCube layoutId="agent-main" state={aiGlobalState === "validating" ? "searching" : (aiGlobalState as AgentState)} size={40} className="-mb-1" />
           )}
         </h1>
 
@@ -1037,6 +1040,7 @@ export function BomEditor({
         </button>
       </div>
     </div>
+    </LayoutGroup>
   );
 }
 
@@ -1166,7 +1170,7 @@ function SortableRow({
       </tr>
 
       {sourcingLineId === line.id && (
-        <tr className="bg-blue-50/60 border-b border-blue-100">
+        <tr className="border-b" style={{ background: "rgba(8,7,30,0.7)" }}>
           <td />
           <td colSpan={columns.length + 1} className="px-2 py-2">
             {aiSourcingEnabled ? (
@@ -1249,92 +1253,83 @@ function AiSourcingPanel({
   onApply: (suggestion: AiSourcingSuggestion) => void;
   onSkip: () => void;
 }) {
-  const loadingTexts = [
-    "Analyse des critères techniques…",
-    "Détection du fournisseur demandé…",
-    "Recherche de vrais produits web…",
-    "Classement des 3 meilleurs résultats…",
-  ];
-  const [loadingIndex, setLoadingIndex] = React.useState(0);
-
-  React.useEffect(() => {
-    if (!state.loading) return;
-    const id = window.setInterval(() => {
-      setLoadingIndex((idx) => (idx + 1) % loadingTexts.length);
-    }, 1200);
-    return () => window.clearInterval(id);
-  }, [state.loading, loadingTexts.length]);
+  const { state: aiGlobalState } = useAiState();
+  const cubeState = aiGlobalState === "validating" ? "searching" : aiGlobalState === "warning" ? "warning" : aiGlobalState === "success" ? "success" : state.loading ? "searching" : "idle";
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-950">
-            <Sparkles className="size-3.5" />
-            Sourcing IA « {line.designation} »
+    <div className="flex flex-col gap-3 py-1">
+      {/* Header: cube + title + actions */}
+      <div className="flex items-center gap-3">
+        <AgentCube layoutId="agent-main" state={cubeState as AgentState} size={52} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <Sparkles className="size-3.5 text-blue-400 shrink-0" />
+            <span className="truncate">Sourcing IA « {line.designation} »</span>
           </div>
-          <div className="text-[11px] text-blue-900/70">
-            L’IA respecte les sites cités et les critères techniques détectés.
-          </div>
+          <AgentCubeScenes active={state.loading} />
+          {!state.loading && (
+            <div className="text-[11px] text-muted-foreground">
+              {state.suggestions.length > 0
+                ? `${state.suggestions.length} résultat${state.suggestions.length > 1 ? "s" : ""} trouvé${state.suggestions.length > 1 ? "s" : ""}`
+                : "Prêt à chercher"}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={onRefresh} className="text-xs text-blue-900/70 hover:text-blue-950">
+        <div className="flex items-center gap-2 shrink-0">
+          <button type="button" onClick={onRefresh} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             Relancer
           </button>
-          <button type="button" onClick={onSkip} className="text-xs text-blue-900/70 hover:text-blue-950">
-            Continuer sans sourcer
+          <button type="button" onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            Ignorer
           </button>
         </div>
       </div>
 
-      {state.loading && (
-        <div className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs text-blue-950">
-          <span className="inline-block animate-pulse">{loadingTexts[loadingIndex]}</span>
-        </div>
-      )}
-
+      {/* Error */}
       {state.error && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <div className="rounded-md border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs text-amber-300">
           {state.error}
         </div>
       )}
 
+      {/* Parsed tags */}
       {(state.parsed?.requiredTerms?.length || state.parsed?.preferredSites?.length) && (
         <div className="flex flex-wrap gap-1.5">
           {(state.parsed.preferredSites ?? []).map((site) => (
-            <span key={`site-${site}`} className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-950">
+            <span key={`site-${site}`} className="rounded-full bg-blue-500/15 border border-blue-500/20 px-2 py-0.5 text-[11px] text-blue-300">
               site: {site}
             </span>
           ))}
           {(state.parsed.requiredTerms ?? []).slice(0, 8).map((term) => (
-            <span key={`term-${term}`} className="rounded-full bg-white px-2 py-0.5 text-[11px] text-blue-950 border border-blue-100">
+            <span key={`term-${term}`} className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] text-muted-foreground">
               {term}
             </span>
           ))}
         </div>
       )}
 
+      {/* Results */}
       {state.suggestions.length > 0 && (
         <div className="grid gap-2 md:grid-cols-3">
           {state.suggestions.map((suggestion) => (
-            <div key={suggestion.url} className="rounded-md border border-blue-200 bg-white p-3 text-xs text-blue-950">
-              <div className="font-medium line-clamp-2">{suggestion.title}</div>
-              <div className="mt-1 text-[11px] text-blue-900/70">
-                {suggestion.supplier ?? "Fournisseur détecté"} · confiance {suggestion.confidence}%
+            <div key={suggestion.url} className="rounded-lg border border-white/8 bg-white/4 p-3 text-xs text-foreground hover:bg-white/6 transition-colors">
+              <div className="font-medium line-clamp-2 text-foreground">{suggestion.title}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {suggestion.supplier ?? "Fournisseur"} · {suggestion.confidence}%
               </div>
               {suggestion.priceHint && (
-                <div className="mt-1 text-[11px] text-blue-900">Prix: {suggestion.priceHint}</div>
+                <div className="mt-1 text-[11px] text-emerald-400">{suggestion.priceHint}</div>
               )}
-              <p className="mt-2 line-clamp-3 text-[11px] text-blue-900/80">{suggestion.notes}</p>
+              <p className="mt-2 line-clamp-3 text-[11px] text-muted-foreground">{suggestion.notes}</p>
               <div className="mt-3 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => onApply(suggestion)}
-                  className="rounded-md bg-blue-600 px-2 py-1 text-white hover:bg-blue-700"
+                  className="rounded-md bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-500 transition-colors"
                 >
                   Sélectionner
                 </button>
-                <a href={suggestion.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-800 hover:underline">
+                <a href={suggestion.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   Ouvrir <ExternalLink className="size-3" />
                 </a>
               </div>
@@ -1344,8 +1339,8 @@ function AiSourcingPanel({
       )}
 
       {!state.loading && !state.error && state.suggestions.length === 0 && (
-        <div className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs text-blue-950">
-          Aucune suggestion chargée. Clique sur Relancer pour chercher.
+        <div className="rounded-md border border-white/8 bg-white/3 px-3 py-2 text-xs text-muted-foreground">
+          Aucune suggestion. Clique sur Relancer pour chercher.
         </div>
       )}
     </div>

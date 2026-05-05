@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ChevronRight, X } from "lucide-react";
-import { AgentBOM } from "./agent-bom";
+import { AgentCube } from "./agent-cube";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -109,7 +109,7 @@ export function OnboardingModal() {
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-white/8">
           <div className="flex items-center gap-3">
-            <AgentBOM state="idle" size={36} />
+            <AgentCube state="idle" size={36} />
             <div>
               <h2 className="text-base font-semibold tracking-tight text-foreground">
                 Que veux-tu explorer ?
