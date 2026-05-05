@@ -25,6 +25,7 @@
     "drizzle-orm": "^0.38.2",
     "dxf-parser": "^1.1.2",
     "exceljs": "^4.4.0",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.468.0",
     "nanoid": "^5.0.9",
     "next": "15.1.11",
